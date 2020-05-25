@@ -1,7 +1,8 @@
 import yaml
 import semver
 import requests
-import slack as Slack
+from slack import WebClient
+from slack.errors import SlackApiError
 from pathlib import Path
 import os
 
@@ -9,8 +10,9 @@ chart_repos = []
 mycharts = []
 new_updates = []
 
-rootdir = 'playbook-deploy-k8s/roles'
-extensions = '.yml'
+rootdir = os.environ.get("HELMINATOR_ROOT_DIR")
+client = WebClient(token=os.environ['HELMINATOR_SLACK_API_TOKEN'])
+channel = os.environ.get("HELMINATOR_SLACK_CHANNEL")
 
 
 def get_helm_charts(path):
@@ -79,13 +81,20 @@ for item in Path(rootdir).glob("**/*"):
 for item in Path(rootdir).glob("**/*"):
     if not item.is_file():
         continue
+    excludes = ['prometheus-operator', 'minio-backup', 'local-path-provisioner', 'nfs-client-provisioner']
+    if any(entry for entry in excludes if entry in item.parts):
+        continue
     if item.suffix not in ['.yml']:
         continue
     get_repo_urls(path=item.absolute())
 
 if new_updates:
-    slack = Slack.Slack(webhook=os.environ.get("SLACK_URL"))
-    slack.info("There are updates for your Helm charts available!")
-    for update in new_updates:
-        slack.info(f"Update {update['name']} to {update['new_version']}")
-    slack.send()
+    text = [f"Update for chart `{update['name']}` available: version `{update['new_version']}`" for update in new_updates]
+    try:
+        response = client.chat_postMessage(
+            channel=channel,
+            text='\n'.join(text))
+    except SlackApiError as e:
+        assert e.response["ok"] is False
+        assert e.response["error"]
+        print(f"Got an error: {e.response['error']}")
