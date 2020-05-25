@@ -71,9 +71,6 @@ def get_chart_updates():
         for repo_charts in repo_charts['entries'].items():
             latest_version = "0.0.1"
             for repo_chart in repo_charts[1]:
-                print(repo_chart['name'])
-                if repo_chart['name'] == "nfs-client-provisioner":
-                    print("tom ist schwul")
                 if not any(c for c in ansible_helm_charts if c['name'] == repo_chart['name']):
                     continue
                 if not semver.VersionInfo.isvalid(repo_chart['version']):
