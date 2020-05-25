@@ -1,19 +1,39 @@
-import yaml
-import semver
-import requests
-from slack import WebClient
-from slack.errors import SlackApiError
-from pathlib import Path
 import os
+import sys
+from pathlib import Path
+from collections import namedtuple
 
-ansible_chart_repos = []
-ansible_helm_charts = []
-chart_updates = []
+try:
+    import requests
+    import semver
+    import yaml
+    from slack import WebClient
+    from slack.errors import SlackApiError
+except Exception as e:
+    sys.stderr.write("requirenments are not satisified!")
+    sys.exit(1)
 
-search_dir = os.environ.get("HELMINATOR_ROOT_DIR")
-slack_client = WebClient(token=os.environ['HELMINATOR_SLACK_API_TOKEN'])
-slack_channel = os.environ.get("HELMINATOR_SLACK_CHANNEL")
 
+ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
+
+
+def check_env_vars():
+    search_dir = os.environ.get("HELMINATOR_ROOT_DIR")
+    slack_token = os.environ.get("HELMINATOR_SLACK_API_TOKEN")
+    slack_channel = os.environ.get("HELMINATOR_SLACK_CHANNEL")
+    exclude_roles = os.environ.get("HELMINATOR_EXCLUDE_ROLES")
+
+    if not search_dir:
+        raise EnvironmentError("environment variable 'HELMINATOR_ROOT_DIR' not found!")
+    
+    if not slack_token:
+        raise EnvironmentError("environment variable 'HELMINATOR_SLACK_API_TOKEN' not found!")
+
+    if not slack_channel:
+        raise EnvironmentError("environment variable 'HELMINATOR_SLACK_CHANNEL' not found!")
+
+    Env_vars = namedtuple('Env_vars', ['search_dir', 'slack_token', 'slack_channel'])
+    return Env_vars(search_dir, slack_token, slack_channel)
 
 def get_ansible_helm(path):
     with open(path) as stream:
@@ -51,13 +71,21 @@ def get_chart_updates():
         for repo_charts in repo_charts['entries'].items():
             latest_version = "0.0.1"
             for repo_chart in repo_charts[1]:
+                print(repo_chart['name'])
+                if repo_chart['name'] == "nfs-client-provisioner":
+                    print("tom ist schwul")
                 if not any(c for c in ansible_helm_charts if c['name'] == repo_chart['name']):
                     continue
                 if not semver.VersionInfo.isvalid(repo_chart['version']):
                     continue
                 ansible_version = [charts['version'] for charts in ansible_helm_charts if charts['name'] ==
                                    repo_chart['name']]
-                if not semver.VersionInfo.isvalid(ansible_version[0]):
+                version = ansible_version[0]
+                if not version:
+                    sys.stderr.write(f"WARNING: {repo_chart['name']} has no 'chart_version'")
+                    continue
+
+                if not semver.VersionInfo.isvalid(str(version)):
                     continue
                 if semver.match(f"{ansible_version[0]}", f">={repo_chart['version']}"):
                     continue
@@ -71,7 +99,19 @@ def get_chart_updates():
                 chart_updates.append(repo_chart)
 
 
-def main():
+def send_slack(slack_token, slack_channel):
+    slack_client = WebClient(token=slack_token)
+
+    text = [f"Update for chart `{chart_update['name']}` available: version `{chart_update['new_version']}`"
+            for chart_update in chart_updates]
+    try:
+        slack_client.chat_postMessage(channel=slack_channel,
+                                        text='\n'.join(text))
+    except SlackApiError as e:
+        print(f"Got an error: {e.response['error']}")
+
+
+def process_yaml(search_dir):
     for item in Path(search_dir).glob("**/*"):
         if not item.is_file():
             continue
@@ -79,16 +119,32 @@ def main():
             continue
         get_ansible_helm(path=item.absolute())
 
-    get_chart_updates()
+
+def main():
+    try:
+        env_vars = check_env_vars()
+    except Exception as e:
+        sys.stderr.write(f"cannot process yamls. {e}")
+        sys.exit(1)
+    
+    try:
+        process_yaml(search_dir=env_vars.search_dir)
+    except Exception as e:
+        sys.stderr.write(f"cannot process yamls. {e}")
+        sys.exit(1)
+
+    try:
+        get_chart_updates()
+    except Exception as e:
+        sys.stderr.write(f"cannot fetch charts. {e}")
+        sys.exit(1)
 
     if chart_updates:
-        text = [f"Update for chart `{chart_update['name']}` available: version `{chart_update['new_version']}`"
-                for chart_update in chart_updates]
         try:
-            slack_client.chat_postMessage(channel=slack_channel,
-                                          text='\n'.join(text))
-        except SlackApiError as e:
-            print(f"Got an error: {e.response['error']}")
+            send_slack(slack_token=env_vars.slack_token, slack_channel=env_vars.slack_channel)
+        except Exception as e:
+            sys.stderr.write(f"cannot send slack. {e}")
+            sys.exit(1)
 
 
 if __name__ == "__main__":
