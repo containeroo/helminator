@@ -21,7 +21,8 @@ def get_ansible_helm(path):
 
     for task in tasks:
         if task.get('community.kubernetes.helm'):
-            if not any(chart for chart in ansible_helm_charts if chart == task['community.kubernetes.helm']['chart_ref']):
+            if not any(
+                    chart for chart in ansible_helm_charts if chart == task['community.kubernetes.helm']['chart_ref']):
                 segments = task['community.kubernetes.helm']['chart_ref'].split('/')
                 if len(segments) > 2:
                     continue
@@ -38,7 +39,8 @@ def get_repo_charts(path):
 
     for task in tasks:
         if task.get('community.kubernetes.helm_repository'):
-            if not any(repo for repo in helm_repo_charts if repo['name'] == task['community.kubernetes.helm_repository']['name']):
+            if not any(repo for repo in helm_repo_charts
+                       if repo['name'] == task['community.kubernetes.helm_repository']['name']):
                 repo = {
                     'name': task['community.kubernetes.helm_repository']['name'],
                     'url': task['community.kubernetes.helm_repository']['repo_url']
@@ -54,7 +56,8 @@ def get_repo_charts(path):
                             continue
                         if not semver.VersionInfo.isvalid(repo_chart['version']):
                             continue
-                        ansible_version = [charts['version'] for charts in ansible_helm_charts if charts['name'] == repo_chart['name']]
+                        ansible_version = [charts['version'] for charts in ansible_helm_charts if charts['name'] ==
+                                           repo_chart['name']]
                         if not semver.VersionInfo.isvalid(ansible_version[0]):
                             continue
                         if semver.match(f"{ansible_version[0]}", f">={repo_chart['version']}"):
@@ -88,7 +91,8 @@ for item in Path(search_dir).glob("**/*"):
     get_repo_charts(path=item.absolute())
 
 if chart_updates:
-    text = [f"Update for chart `{update['name']}` available: version `{update['new_version']}`" for update in chart_updates]
+    text = [f"Update for chart `{chart_update['name']}` available: version `{chart_update['new_version']}`"
+            for chart_update in chart_updates]
     try:
         response = slack_client.chat_postMessage(
             channel=slack_channel,
