@@ -75,16 +75,16 @@ def get_chart_updates():
                     continue
                 if not semver.VersionInfo.isvalid(repo_chart['version']):
                     continue
-                ansible_version = [charts['version'] for charts in ansible_helm_charts if charts['name'] ==
-                                   repo_chart['name']]
-                version = ansible_version[0]
-                if not version:
+                ansible_chart_version = [charts['version'] for charts in ansible_helm_charts if charts['name'] ==
+                                         repo_chart['name']]
+                ansible_chart_version = ansible_chart_version[0]
+                if not ansible_chart_version:
                     sys.stderr.write(f"WARNING: {repo_chart['name']} has no 'chart_version'")
                     continue
 
-                if not semver.VersionInfo.isvalid(str(version)):
+                if not semver.VersionInfo.isvalid(ansible_chart_version):
                     continue
-                if semver.match(f"{ansible_version[0]}", f">={repo_chart['version']}"):
+                if semver.match(f"{ansible_chart_version}", f">={repo_chart['version']}"):
                     continue
                 if semver.match(f"{latest_version}", f">={repo_chart['version']}"):
                     continue
