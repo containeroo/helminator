@@ -1,0 +1,12 @@
+image: 
+  name: containeroo/helminator:latest
+  entrypoint: [""]
+
+stages:
+  - helminator
+
+helminator:
+  stage: helminator
+  only:
+    - schedules
+  script: python /app/helminator.py

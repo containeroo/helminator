@@ -1,0 +1,75 @@
+---
+- name: Add appscode chart repo
+  community.kubernetes.helm_repository:
+    name: appscode
+    repo_url: https://charts.appscode.com/stable
+
+- name: Install helm chart stash-operator
+  community.kubernetes.helm:
+    name: stash-operator
+    chart_ref: appscode/stash
+    release_namespace: kube-system
+    chart_version: v0.9.0-rc.6
+    values: "{{ lookup('template', 'stash-operator-values.yaml') | from_yaml }}"
+  register: stashoperatorinstalled
+
+- name: Waiting for crd creation
+  pause:
+    seconds: 30
+  when: stashoperatorinstalled.changed
+
+- name: Install helm chart stash-operator mysql addon
+  community.kubernetes.helm:
+    name: "stash-mysql-{{ item }}"
+    chart_ref: appscode/stash-mysql
+    release_namespace: kube-system
+    chart_version: "{{ item }}"
+    values: "{{ lookup('template', 'stash-addons-values.yaml') | from_yaml }}"
+  with_items:
+    - "8.0.3"
+    - "8.0.14"
+    - "5.7.25"
+
+- name: Install helm chart stash-operator postgres addon
+  community.kubernetes.helm:
+    name: "stash-postgres-{{ item }}"
+    chart_ref: appscode/stash-postgres
+    release_namespace: kube-system
+    chart_version: "{{ item }}"
+    values: "{{ lookup('template', 'stash-addons-values.yaml') | from_yaml }}"
+  with_items:
+    - "10.2"
+    - "10.6"
+    - "11.1"
+    - "11.2"
+    - "9.6"
+
+- name: Create stash-backup prometheusrule
+  community.kubernetes.k8s:
+    state: present
+    definition: "{{ lookup('template', 'stash-backup-prometheusrule.yaml') }}"
+
+- name: Create stash-repository-integrity prometheusrule
+  community.kubernetes.k8s:
+    state: present
+    definition: "{{ lookup('template', 'stash-repository-integrity-prometheusrule.yaml') }}"
+
+- name: Create stash minio backup secret
+  community.kubernetes.k8s:
+    state: present
+    definition: "{{ lookup('template', 'minio-backup-secret.yaml') }}"
+
+- name: Create stash mysql blueprint
+  community.kubernetes.k8s:
+    state: present
+    definition: "{{ lookup('template', 'mysql-backup-blueprint.yaml') }}"
+
+- name: Create stash postgres blueprint
+  community.kubernetes.k8s:
+    state: present
+    definition: "{{ lookup('template', 'postgres-backup-blueprint.yaml') }}"
+
+- name: Create stash pvc blueprint
+  community.kubernetes.k8s:
+    state: present
+    definition: "{{ lookup('template', 'pvc-backup-blueprint.yaml') }}"

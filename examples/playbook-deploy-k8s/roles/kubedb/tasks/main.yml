@@ -1,0 +1,25 @@
+---
+- name: Add appscode chart repo
+  community.kubernetes.helm_repository:
+    name: appscode
+    repo_url: https://charts.appscode.com/stable
+
+- name: Install helm chart kubedb-operator
+  community.kubernetes.helm:
+    name: kubedb-operator
+    chart_ref: appscode/kubedb
+    release_namespace: kube-system
+    chart_version: v0.13.0-rc.0
+  register: kubedboperatorinstalled
+
+- name: Waiting for crd creation
+  pause:
+    seconds: 30
+  when: kubedboperatorinstalled.changed
+
+- name: Install helm chart kubedb-catalog
+  community.kubernetes.helm:
+    name: kubedb-catalog
+    chart_ref: appscode/kubedb-catalog
+    release_namespace: kube-system
+    chart_version: v0.13.0-rc.0

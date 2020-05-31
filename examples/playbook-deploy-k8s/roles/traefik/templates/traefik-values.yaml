@@ -1,0 +1,30 @@
+{% if additional_arguments is defined %}
+additionalArguments:
+{% for arg in additional_arguments %}
+  - {{ arg }}
+{% endfor %}
+{% endif %}
+env:
+- name: CF_API_EMAIL
+  valueFrom:
+    secretKeyRef:
+      key: email
+      name: cloudflare-api-credentials
+- name: CF_API_KEY
+  valueFrom:
+    secretKeyRef:
+      key: apiKey
+      name: cloudflare-api-credentials
+ingressRoute:
+  dashboard:
+    enabled: false
+persistence:
+  accessMode: ReadWriteOnce
+  annotations: {}
+  enabled: true
+  path: /certs
+  size: 128Mi
+volumes:
+- mountPath: /data
+  name: traefik-config
+  type: configMap

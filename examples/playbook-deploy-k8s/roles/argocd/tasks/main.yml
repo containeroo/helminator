@@ -1,0 +1,50 @@
+---
+- name: Create argocd namespace
+  community.kubernetes.k8s:
+    name: argocd
+    api_version: v1
+    kind: Namespace
+    state: present
+
+- name: Add argo chart repo
+  community.kubernetes.helm_repository:
+    name: argo
+    repo_url: https://argoproj.github.io/argo-helm
+
+- name: Install helm chart argocd
+  community.kubernetes.helm:
+    name: argocd
+    chart_ref: argo/argo-cd
+    chart_version: 2.3.5
+    release_namespace: argocd
+    values: "{{ lookup('template', 'argocd-values.yaml') | from_yaml }}"
+
+- name: Create argocd ingressroute
+  community.kubernetes.k8s:
+    state: present
+    definition: "{{ lookup('template', 'argocd-ingressroute.yaml') }}"
+
+- name: Create argocd-repo-server servicemonitor
+  community.kubernetes.k8s:
+    state: present
+    definition: "{{ lookup('template', 'argocd-repo-server-servicemonitor.yaml') }}"
+
+- name: Create argocd-server servicemonitor
+  community.kubernetes.k8s:
+    state: present
+    definition: "{{ lookup('template', 'argocd-server-servicemonitor.yaml') }}"
+
+- name: Create argocd servicemonitor
+  community.kubernetes.k8s:
+    state: present
+    definition: "{{ lookup('template', 'argocd-servicemonitor.yaml') }}"
+
+- name: Create argocd-app-health prometheusrule
+  community.kubernetes.k8s:
+    state: present
+    definition: "{{ lookup('template', 'argocd-app-health-prometheusrule.yaml') }}"
+
+- name: Create argocd-app-sync-status prometheusrule
+  community.kubernetes.k8s:
+    state: present
+    definition: "{{ lookup('template', 'argocd-app-sync-status-prometheusrule.yaml') }}"
