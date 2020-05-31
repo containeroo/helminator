@@ -1,0 +1,79 @@
+---
+- hosts: prod
+  gather_facts: false
+  collections:
+    - community.kubernetes
+  vars_files:
+    - vars/main.yml
+    - vars/secrets.yml
+  pre_tasks:
+    - name: Update all Helm repositories
+      shell: helm repo update
+      changed_when: false
+      ignore_errors: yes
+      tags:
+        - always
+  tasks:
+    - import_role:
+        name: requirements
+      tags:
+        - requirements
+    - import_role:
+        name: local-path-provisioner
+      tags:
+        - local-path-provisioner
+    - import_role:
+        name: nfs-client-provisioner
+      tags:
+        - nfs-client-provisioner
+    - import_role:
+        name: traefik
+      tags:
+        - traefik
+    - import_role:
+        name: kubernetes-dashboard
+      tags:
+        - kubernetes-dashboard
+    - import_role:
+        name: minio-backup
+      tags:
+        - minio-backup
+    - import_role:
+        name: prometheus-operator
+      tags:
+        - prometheus-operator
+    - import_role:
+        name: kubedb
+      tags:
+        - kubedb
+    - import_role:
+        name: stash
+      tags:
+        - stash
+    - import_role:
+        name: gitlab
+      tags:
+        - gitlab
+    - import_role:
+        name: argocd
+      tags:
+        - argocd
+    - import_role:
+        name: velero
+      tags:
+        - velero
+  post_tasks:
+    - name: Kubernetes dashboard token
+      block:
+        - name: Get Kubernetes dashboard token
+          shell: kubectl -n kubernetes-dashboard get secret $(kubectl -n kubernetes-dashboard get secret | grep admin-user | awk '{print $1}') -ojson | jq '.data.token' | cut -d "\"" -f 2 | base64 --decode
+          register: kubernetesdashboardtoken
+          become: true
+          changed_when: false
+          become_method: sudo
+        - name: Kubernetes dashboard token
+          debug:
+            msg: "{{ kubernetesdashboardtoken.stdout }}"
+      when: current_dashboard_version is not defined or current_dashboard_version != kubernetes_dashboard_version
+      tags:
+        - kubernetes-dashboard

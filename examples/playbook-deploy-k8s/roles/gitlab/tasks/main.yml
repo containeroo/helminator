@@ -1,0 +1,47 @@
+---
+- name: Create gitlab namespace
+  community.kubernetes.k8s:
+    name: gitlab
+    api_version: v1
+    kind: Namespace
+    state: present
+
+- name: Add gitlab chart repo
+  community.kubernetes.helm_repository:
+    name: gitlab
+    repo_url: https://charts.gitlab.io
+
+- name: Create email credentials secret
+  community.kubernetes.k8s:
+    state: present
+    definition: "{{ lookup('template', 'gitlab-mail-password-secret.yaml') }}"
+  when: gitlab_mail_enabled
+
+- name: Create sso secret
+  community.kubernetes.k8s:
+    state: present
+    definition: "{{ lookup('template', 'gitlab-saml-sso-secret.yaml') }}"
+  when: gitlab_sso_enabled
+
+- name: Install helm chart gitlab
+  community.kubernetes.helm:
+    name: gitlab
+    chart_ref: gitlab/gitlab
+    chart_version: 4.0.2
+    release_namespace: gitlab
+    values: "{{ lookup('template', 'gitlab-values.yaml') | from_yaml }}"
+
+- name: Create gitlab webservice ingressroute
+  community.kubernetes.k8s:
+    state: present
+    definition: "{{ lookup('template', 'gitlab-webservice-ingressroute.yaml') }}"
+
+- name: Create gitlab registry ingressroute
+  community.kubernetes.k8s:
+    state: present
+    definition: "{{ lookup('template', 'gitlab-registry-ingressroute.yaml') }}"
+
+- name: Create gitlab minio ingressroute
+  community.kubernetes.k8s:
+    state: present
+    definition: "{{ lookup('template', 'gitlab-minio-ingressroute.yaml') }}"

@@ -1,0 +1,41 @@
+---
+- name: Create monitoring namespace
+  community.kubernetes.k8s:
+    name: monitoring
+    api_version: v1
+    kind: Namespace
+    state: present
+
+- name: Add stable chart repo
+  community.kubernetes.helm_repository:
+    name: stable
+    repo_url: https://kubernetes-charts.storage.googleapis.com
+
+- name: Install helm chart prometheus-operator
+  community.kubernetes.helm:
+    name: prometheus-operator
+    chart_ref: stable/prometheus-operator
+    chart_version: 8.13.8
+    release_namespace: monitoring
+    values: "{{ lookup('template', 'prometheus-operator-values.yaml') | from_yaml }}"
+  register: prometheusoperatorinstalled
+
+- name: Create prometheus ingressroute
+  community.kubernetes.k8s:
+    state: present
+    definition: "{{ lookup('template', 'prometheus-ingressroute.yaml') }}"
+
+- name: Create alertmanager ingressroute
+  community.kubernetes.k8s:
+    state: present
+    definition: "{{ lookup('template', 'alertmanager-ingressroute.yaml') }}"
+
+- name: Create grafana ingressroute
+  community.kubernetes.k8s:
+    state: present
+    definition: "{{ lookup('template', 'grafana-ingressroute.yaml') }}"
+
+- name: Waiting for crd creation
+  pause:
+    seconds: 30
+  when: prometheusoperatorinstalled.changed

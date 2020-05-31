@@ -1,0 +1,20 @@
+---
+- name: Create nfs-client-provisioner namespace
+  community.kubernetes.k8s:
+    name: nfs-client-provisioner
+    api_version: v1
+    kind: Namespace
+    state: present
+
+- name: Add stable chart repo
+  community.kubernetes.helm_repository:
+    name: stable
+    repo_url: https://kubernetes-charts.storage.googleapis.com
+
+- name: Install helm chart backup nfs-client-provisioner
+  community.kubernetes.helm:
+    name: backup
+    chart_ref: stable/nfs-client-provisioner
+    chart_version: 1.2.8
+    release_namespace: nfs-client-provisioner
+    values: "{{ lookup('template', 'backup-nfs-client-provisioner-values.yaml') | from_yaml }}"

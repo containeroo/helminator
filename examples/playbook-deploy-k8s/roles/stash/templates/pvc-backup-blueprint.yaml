@@ -1,0 +1,18 @@
+apiVersion: stash.appscode.com/v1beta1
+kind: BackupBlueprint
+metadata:
+  name: pvc-backup-blueprint
+spec:
+  backend:
+    s3:
+      endpoint: minio-backup.local.{{ base_domain }}
+      bucket: pvcs
+      prefix: ${TARGET_NAMESPACE}/${TARGET_KIND}/${TARGET_NAME}
+    storageSecretName: minio-backup-secret
+  task:
+    name: pvc-backup
+  schedule: {{ stash_pvc_backup_schedule }}
+  retentionPolicy:
+    name: 'keep-last-{{ stash_pvc_backup_retention }}'
+    keepLast: {{ stash_pvc_backup_retention }}
+    prune: true

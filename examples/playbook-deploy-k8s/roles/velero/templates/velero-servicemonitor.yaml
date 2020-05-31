@@ -1,0 +1,16 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    release: prometheus-operator
+  name: velero
+  namespace: monitoring
+spec:
+  endpoints:
+    - port: monitoring
+  namespaceSelector:
+    matchNames:
+    - velero
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: velero

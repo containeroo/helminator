@@ -1,0 +1,14 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: minio-backup
+  namespace: minio-backup
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`minio-backup.local.{{ base_domain }}`)
+      kind: Rule
+      services:
+        - name: minio-backup
+          port: 9000

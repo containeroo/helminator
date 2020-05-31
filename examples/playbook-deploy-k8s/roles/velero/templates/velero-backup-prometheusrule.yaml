@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    release: prometheus-operator
+    app: prometheus-operator
+  name: velero-backup
+  namespace: monitoring
+spec:
+  groups:
+  - name: general.rules
+    rules:
+    - alert: velero-backup
+      annotations:
+        description: Velero cluster backup failure
+        summary: Velero backup
+      expr: rate(velero_backup_attempt_total{schedule="velero-cluster-resources"}[10m]) - rate(velero_backup_success_total{schedule="velero-cluster-resources"}[10m]) > 0
+      labels:
+        severity: critical

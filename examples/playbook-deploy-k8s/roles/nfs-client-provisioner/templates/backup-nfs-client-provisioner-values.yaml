@@ -1,0 +1,8 @@
+nfs:
+  mountOptions:
+  - nfsvers=3
+  - rw
+  path: {{ nfs_path }}
+  server: {{ nfs_server }}
+storageClass:
+  name: backup
