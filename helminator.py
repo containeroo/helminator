@@ -30,7 +30,7 @@ def check_env_vars():
     if not search_dir:
         raise EnvironmentError(
                 "environment variable 'HELMINATOR_ROOT_DIR' not found!")
-    
+
     if not slack_token:
         raise EnvironmentError(
                 "environment variable 'HELMINATOR_SLACK_API_TOKEN' not found!")
@@ -39,11 +39,9 @@ def check_env_vars():
         raise EnvironmentError(
                 "environment variable 'HELMINATOR_SLACK_CHANNEL' not found!")
 
-    Env_vars = namedtuple('Env_vars', [
-                                        'search_dir',
-                                        'slack_token',
-                                        'slack_channel'
-                                    ]
+    Env_vars = namedtuple('Env_vars', ['search_dir',
+                                       'slack_token',
+                                       'slack_channel']
     )
     return Env_vars(search_dir, slack_token, slack_channel)
 
@@ -142,9 +140,10 @@ def get_chart_updates():
                     continue
                 if semver.match(f"{latest_version}", f">={repo_chart['version']}"):
                     continue
+                latest_version = repo_chart['version']
 
                 logging.info(f"Update for chart `{repo_chart['name']}` "
-                             f"available: version `{repo_chart['version']}`")
+                             f"available: version `{latest_version}`")
 
 
 def send_slack(msg, slack_token, slack_channel):
@@ -178,6 +177,7 @@ def finish(success, msg, slack_token, slack_channel):
             success = False
         sys.exit(0 if success else 1)
 
+
 def main():
     try:
         env_vars = check_env_vars()
@@ -188,27 +188,31 @@ def main():
     try:
         setup_logger()
     except Exception as e:
-        finish(msg=f"cannot setup logger. {str(e)}",
+        finish(success=False,
+               msg=f"cannot setup logger. {str(e)}",
                slack_token=env_vars.slack_token,
                slack_channel=env_vars.slack_channel)
 
     try:
         process_yaml(search_dir=env_vars.search_dir)
     except Exception as e:
-        finish(msg=slack_log.getvalue(),
+        finish(success=False,
+               msg=slack_log.getvalue(),
                slack_token=env_vars.slack_token,
                slack_channel=env_vars.slack_channel)
 
     try:
         get_chart_updates()
     except Exception as e:
-        finish(msg=slack_log.getvalue(),
+        finish(success=False,
+               msg=slack_log.getvalue(),
                slack_token=env_vars.slack_token,
                slack_channel=env_vars.slack_channel)
-    
+
     try:
         if slack_log.getvalue():
-            finish(msg=slack_log.getvalue(),
+            finish(success=True,
+                   msg=slack_log.getvalue(),
                    slack_token=env_vars.slack_token,
                    slack_channel=env_vars.slack_channel)
     except Exception as e:
