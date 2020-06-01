@@ -150,7 +150,7 @@ def get_chart_updates():
         try:
             repo_charts = yaml.safe_load(repo_response.content)
         except Exception as e:
-            write_error(f"cannot parse '{helm_chart_url}'. {str(e)}")
+            write_error(f"unable to parse '{helm_chart_url}'. {str(e)}")
             continue
 
         for repo_charts in repo_charts['entries'].items():
