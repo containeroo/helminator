@@ -140,7 +140,7 @@ def get_chart_updates():
             helm_chart_url = f"{ansible_chart_repo['url']}/index.yaml"
             repo_response = requests.get(url=helm_chart_url)
         except Exception as e:
-            write_error(f"cannot get Helm chart '{helm_chart_url}'. {str(e)}")
+            write_error(f"unable to fetch Helm chart '{helm_chart_url}'. {str(e)}")
             continue
         
         if repo_response.status_code != 200:
