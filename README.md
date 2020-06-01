@@ -17,7 +17,7 @@ It then checks if there is an update to a given Helm chart availible and sends o
 
 In the examples directory you can find an example playbook including the required GitLab Ci configuration.
 
-Helminator takes the following enivironment variables:
+Helminator takes the following environment variables:
 
 |Variable|Description|Example|
 |:--------|:-----------|:-------|
@@ -28,4 +28,3 @@ Helminator takes the following enivironment variables:
 # Slack App
 
 To receive Slack notification you must create a Slack Application. See the [official tutorial](https://github.com/slackapi/python-slackclient/blob/master/tutorial/01-creating-the-slack-app.md).
-
