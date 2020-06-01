@@ -205,7 +205,7 @@ def main():
     try:
         get_chart_updates()
     except Exception as e:
-        write_fatal(f"cannot process yaml. {str(e)}")
+        write_fatal(f"unable to process yaml. {str(e)}")
 
     if chart_updates:
         text = [f"Update for chart `{chart_update['name']}` available: "
