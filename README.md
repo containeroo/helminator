@@ -1,5 +1,9 @@
 # Helminator
 
+![Docker Pulls](https://img.shields.io/docker/pulls/containeroo/helminator?style=flat-square)
+![Docker Image Size (tag)](https://img.shields.io/docker/image-size/containeroo/helminator/latest?style=flat-square)
+![Twitter Follow](https://img.shields.io/twitter/follow/containeroo?style=social)
+
 ## TL;DR
 
 Helminator scans your Ansible roles for Helm repositories and versions.
