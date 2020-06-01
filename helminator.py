@@ -47,7 +47,6 @@ def check_env_vars():
     search_dir = os.environ.get("HELMINATOR_ROOT_DIR")
     slack_token = os.environ.get("HELMINATOR_SLACK_API_TOKEN")
     slack_channel = os.environ.get("HELMINATOR_SLACK_CHANNEL")
-    exclude_roles = os.environ.get("HELMINATOR_EXCLUDE_ROLES")
 
     if not search_dir:
         raise EnvironmentError(
