@@ -21,7 +21,7 @@ try:
     from slack import WebClient
     from slack.errors import SlackApiError
 except Exception:
-    sys.stderr.write(f"{REDDER}requirenments are not satisified! see 'requirements.txt'{DEFAULT}\n")
+    sys.stderr.write(f"{REDDER}requirements are not satisfied! see 'requirements.txt'{DEFAULT}\n")
     sys.exit(1)
 
 
