@@ -25,6 +25,6 @@ Helminator takes the following environment variables:
 |`HELMINATOR_SLACK_API_TOKEN`|Slack API Token|`xorb-abc-def`|
 |`HELMINATOR_SLACK_CHANNEL`|Slack channel to send message to|`#kubernetes`|
 
-# Slack App
+### Slack App
 
 To receive Slack notifications you have to create a Slack App. Please refer to the [this guide](https://github.com/slackapi/python-slackclient/blob/master/tutorial/01-creating-the-slack-app.md).
