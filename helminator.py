@@ -188,7 +188,7 @@ def send_slack(msg, slack_token, slack_channel):
         slack_client.chat_postMessage(channel=slack_channel,
                                       text=msg)
     except SlackApiError as e:
-        raise SlackApiError(f"cannot send slack notification. {str(e)}")
+        raise SlackApiError(f"unable to send slack notification. {str(e)}")
 
 
 def main():
