@@ -200,7 +200,7 @@ def main():
     try:
         process_yaml(search_dir=env_vars.search_dir)
     except Exception as e:
-        write_fatal(f"cannot process yaml. {str(e)}")
+        write_fatal(f"unable to process yaml. {str(e)}")
 
     try:
         get_chart_updates()
