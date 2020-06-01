@@ -21,7 +21,7 @@ Helminator takes the following environment variables:
 
 |Variable|Description|Example|
 |:--------|:-----------|:-------|
-|`HELMINATOR_ROOT_DIR`|Directory to scan (must point to the `roles` directory|`/path/to/playbook/roles`|
+|`HELMINATOR_ROOT_DIR`|Directory to scan|`/path/to/playbook`|
 |`HELMINATOR_SLACK_API_TOKEN`|Slack API Token|`xorb-abc-def`|
 |`HELMINATOR_SLACK_CHANNEL`|Slack channel to send message to|`#kubernetes`|
 
