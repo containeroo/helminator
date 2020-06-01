@@ -219,7 +219,7 @@ def main():
             slack_client.chat_postMessage(channel=env_vars.slack_channel,
                                           text=text)
         except SlackApiError as e:
-            write_fatal(f"cannot send Slack notification. {e.response['error']}")
+            write_fatal(f"unable to send Slack notification. {e.response['error']}")
 
     sys.exit(0 if not error_counter else 1)
 
