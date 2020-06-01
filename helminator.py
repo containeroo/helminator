@@ -50,7 +50,7 @@ def check_env_vars():
 
     if not search_dir:
         raise EnvironmentError(
-                "environment variable 'HELMINATOR_ROOT_DIR' not found!")
+                "environment variable 'HELMINATOR_ROOT_DIR' not set!")
 
     if not slack_token:
         raise EnvironmentError(
