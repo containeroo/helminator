@@ -1,0 +1,7 @@
+nodePathMap:
+- node: DEFAULT_PATH_FOR_NON_LISTED_NODES
+  paths:
+  - {{ ssd_path }}
+storageClass:
+  defaultClass: true
+  name: ssd

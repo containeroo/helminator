@@ -1,0 +1,9 @@
+monitoring:
+  agent: prometheus.io/coreos-operator
+  backup: true
+  operator: true
+  prometheus:
+    namespace: monitoring
+  serviceMonitor:
+    labels:
+      release: prometheus-operator

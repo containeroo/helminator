@@ -11,7 +11,7 @@ It then checks if there is an update to a given Helm chart availible and sends o
 - [Ansible Kubernetes Community collection](https://github.com/ansible-collections/community.kubernetes)
 - Kubernetes Cluster
 - GitLab
-- Slack Application
+- Slack App
 
 ## Configration
 
@@ -27,4 +27,4 @@ Helminator takes the following environment variables:
 
 # Slack App
 
-To receive Slack notifications you have to create a Slack application. Please refer to the [official guide](https://github.com/slackapi/python-slackclient/blob/master/tutorial/01-creating-the-slack-app.md).
+To receive Slack notifications you have to create a Slack App. Please refer to the [this guide](https://github.com/slackapi/python-slackclient/blob/master/tutorial/01-creating-the-slack-app.md).

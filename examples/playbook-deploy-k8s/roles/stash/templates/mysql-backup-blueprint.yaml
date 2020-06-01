@@ -1,0 +1,18 @@
+apiVersion: stash.appscode.com/v1beta1
+kind: BackupBlueprint
+metadata:
+  name: mysql-backup-blueprint
+spec:
+  backend:
+    s3:
+      endpoint: minio-backup.local.{{ base_domain }}
+      bucket: databases
+      prefix: ${TARGET_NAMESPACE}/${TARGET_APP_RESOURCE}/${TARGET_NAME}
+    storageSecretName: minio-backup-secret
+  task:
+    name: mysql-backup-${TARGET_APP_VERSION}
+  schedule: {{ stash_mysql_backup_schedule }}
+  retentionPolicy:
+    name: 'keep-last-{{ stash_mysql_backup_retention }}'
+    keepLast: {{ stash_mysql_backup_retention }}
+    prune: true

@@ -1,0 +1,17 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: alertmanager
+  namespace: monitoring
+spec:
+  entryPoints:
+  - websecure
+  routes:
+  - kind: Rule
+    match: Host(`alertmanager.local.{{ base_domain }}`)
+    middlewares:
+      - name: forward-auth
+        namespace: kube-system
+    services:
+    - name: prometheus-operator-alertmanager
+      port: 9093

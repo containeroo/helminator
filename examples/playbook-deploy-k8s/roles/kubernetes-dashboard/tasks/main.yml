@@ -1,0 +1,48 @@
+---
+- name: Check if Kubernetes dashboard is already installed
+  community.kubernetes.k8s_info:
+    kind: Deployment
+    name: kubernetes-dashboard
+    namespace: kubernetes-dashboard
+  register: dashboardexists
+
+- name: Check Kubernetes dashboard version
+  block:
+    - name: Register Kubernetes dashboard version
+      shell: "kubectl get deployments.apps -n kubernetes-dashboard kubernetes-dashboard -ojsonpath='{.spec.template.spec.containers[*].image}' | sed 's/.*://g'"
+      become: true
+      changed_when: false
+      register: dashboardversion
+    - name: Check current Kubernetes dashboard version
+      set_fact:
+        current_dashboard_version: "{{ dashboardversion.stdout }}"
+      changed_when: false
+  when: dashboardexists is defined
+
+- name: Install or update Kubernetes dashboard
+  block:
+    - name: Delete kubernetes-dashboard namespace
+      community.kubernetes.k8s:
+        name: kubernetes-dashboard
+        api_version: v1
+        kind: Namespace
+        state: absent
+    - name: Apply desired Kubernetes dashboard release
+      shell: "kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/{{ kubernetes_dashboard_version }}/aio/deploy/recommended.yaml"
+      become: true
+  when: current_dashboard_version is not defined or current_dashboard_version != kubernetes_dashboard_version
+
+- name: Create Kubernetes dashboard ingressroute
+  community.kubernetes.k8s:
+    state: present
+    definition: "{{ lookup('template', 'kubernetes-dashboard-ingressroute.yaml') }}"
+
+- name: Create Kubernetes dashboard ServiceAccount
+  community.kubernetes.k8s:
+    state: present
+    definition: "{{ lookup('template', 'admin-user-serviceaccount.yaml') }}"
+
+- name: Create Kubernetes dashboard ClusterRoleBinding
+  community.kubernetes.k8s:
+    state: present
+    definition: "{{ lookup('template', 'admin-user-clusterrolebinding.yaml') }}"

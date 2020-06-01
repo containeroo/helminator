@@ -1,0 +1,30 @@
+server:
+  metrics:
+    enabled: true
+  config:
+{% if argocd_sso_enabled %}
+    admin.enabled: "false"
+    oidc.config: |
+      name: {{ argocd_sso_name }}
+      issuer: {{ argocd_sso_idp_url }}
+      clientID: {{ argocd_sso_client_id }}
+      clientSecret: {{ argocd_sso_client_secret }}
+      requestedScopes: ["openid", "profile", "email"]
+{% else %}
+    admin.enabled: "true"
+{% endif %}
+    url: https://argocd.{{ base_domain }}
+{% if argocd_extraArgs is defined %}
+  extraArgs:
+{% for extraArg in argocd_extraArgs %}
+    - {{ extraArg }}
+{% endfor %}
+{% endif %}
+  rbacConfig:
+    policy.default: role:admin
+controller:
+  metrics:
+    enabled: true
+repoServer:
+  metrics:
+    enabled: true

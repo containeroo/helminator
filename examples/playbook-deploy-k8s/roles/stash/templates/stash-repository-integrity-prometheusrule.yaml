@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    release: prometheus-operator
+    app: prometheus-operator
+  name: stash-repository-integrity
+  namespace: monitoring
+spec:
+  groups:
+  - name: general.rules
+    rules:
+    - alert: stash-repository-integrity
+      annotations:
+        description: Stash repository integrity failure
+        summary: Stash repository
+      expr: stash_repository_integrity != 1
+      labels:
+        severity: critical

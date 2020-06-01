@@ -1,0 +1,102 @@
+---
+# common vars
+ansible_python_interpreter: /usr/bin/python3
+base_domain: example.com
+
+# roles/local-path-provisioner
+ssd_path: /data
+hdd_path: /mnt/datadisk
+
+# roles/nfs-client-provisioner
+nfs_server: nfs.srv.example.com
+nfs_path: /volume1/kubernetes
+
+# roles/traefik
+cf_api_email: example@mail.com
+cert_domain: example.com
+cert_sans: "*.example.com"
+acme_email: example@mail.com
+additional_arguments:
+  - --serverstransport.insecureskipverify
+  - --providers.file.filename=/data/traefik-config.yaml
+  - --entrypoints.web.http.redirections.entrypoint.to=:443
+  - --entrypoints.web.http.redirections.entrypoint.permanent=true
+  - --entrypoints.websecure.http.tls.certresolver=cloudflare
+  - --entrypoints.websecure.http.tls.domains[0].main={{ cert_domain }}
+  - --entrypoints.websecure.http.tls.domains[0].sans={{ cert_sans }}
+  - --entrypoints.websecure.http.middlewares=headers-default@file
+  - --certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare
+  - --certificatesresolvers.cloudflare.acme.email={{ acme_email }}
+  - --certificatesresolvers.cloudflare.acme.dnschallenge.resolvers=1.1.1.1
+  - --certificatesresolvers.cloudflare.acme.storage=/certs/acme.json
+routers:
+  - name: pihole
+    entrypoints:
+      - websecure
+    rule: "Host(`pihole.{{ base_domain }}`)"
+    middlewares:
+      - kube-system-addprefix-pihole@kubernetescrd
+    service: pihole
+  - name: checkmk
+    entrypoints:
+      - websecure
+    rule: "Host(`checkmk.{{ base_domain }}`)"
+    service: checkmk
+services:
+  - name: pihole
+    servers:
+      - http://10.0.0.4:80
+  - name: checkmk
+    servers:
+      - http://10.0.0.5:80
+
+# roles/kubernetes-dashboard
+kubernetes_dashboard_version: v2.0.0
+
+# roles/minio-backup
+accesskey: minio
+buckets:
+  - cluster-resources
+  - databases
+  - pvcs
+  - gitlab
+
+# roles/prometheus-operator
+slack_channel: "#kubernetes"
+grafana_sso_enabled: yes
+grafana_sso_name: example.com SSO
+grafana_sso_client_id: grafana
+grafana_sso_idp_url: https://auth.example.com/auth/realms/master/protocol/openid-connect
+
+# roles/stash
+stash_mysql_backup_schedule: "0 1 * * *"
+stash_mysql_backup_retention: 5
+stash_postgres_backup_schedule: "0 1 * * *"
+stash_postgres_backup_retention: 5
+stash_pvc_backup_schedule: "0 2 * * *"
+stash_pvc_backup_retention: 5
+
+# roles/gitlab
+gitlab_backup_enabled: yes
+gitlab_backup_schedule: "0 1 * * *"
+gitlab_sso_enabled: yes
+gitlab_sso_name: example.com
+gitlab_sso_assertion_consumer_service_url: "https://git.{{ base_domain }}/users/auth/saml/callback"
+gitlab_sso_idp_url: "https://auth.example.com/auth/realms/master/protocol/saml/clients/git.{{ base_domain }}"
+gitlab_sso_issuer: "git.{{ base_domain }}"
+gitlab_mail_enabled: yes
+gitlab_mail_from: git@example.com
+gitlab_mail_smtp: smtp.example.com
+gitlab_mail_smtp_port: 587
+
+# roles/argocd
+argocd_extraArgs:
+  - --insecure
+argocd_sso_enabled: yes
+argocd_sso_name: example.com SSO
+argocd_sso_idp_url: https://auth.example.com/auth/realms/master
+argocd_sso_client_id: argocd
+
+# roles/velero
+velero_backup_schedule: "*/15 * * * *"
+velero_backup_retention: 240h
