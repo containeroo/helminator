@@ -1,7 +1,6 @@
 import os
 import sys
 from collections import namedtuple
-from io import StringIO
 from pathlib import Path
 
 # colors
