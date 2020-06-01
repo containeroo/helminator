@@ -54,7 +54,7 @@ def check_env_vars():
 
     if not slack_token:
         raise EnvironmentError(
-                "environment variable 'HELMINATOR_SLACK_API_TOKEN' not found!")
+                "environment variable 'HELMINATOR_SLACK_API_TOKEN' not set!")
 
     if not slack_channel:
         raise EnvironmentError(
