@@ -12,7 +12,7 @@ REDDER = '\x1b[41m'
 DEFAULT = '\x1b[0m'
 
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
-error_counter = 0
+errors = None
 
 try:
     import requests
@@ -31,8 +31,9 @@ def write_fatal(msg):
 
 
 def write_error(msg):
+    global errors
+    errors = True
     sys.stderr.write(f"{RED}ERROR: {msg}{DEFAULT}\n")
-    error_counter += 1
 
 
 def write_warning(msg):
@@ -221,7 +222,7 @@ def main():
         except SlackApiError as e:
             write_fatal(f"unable to send Slack notification. {e.response['error']}")
 
-    sys.exit(0 if not error_counter else 1)
+    sys.exit(1 if errors else 0)
 
 
 if __name__ == "__main__":
