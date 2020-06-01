@@ -102,7 +102,7 @@ def get_ansible_helm(path):
         # skip invalid yamls, like templates
         return
     except Exception as e:
-        write_warning(f"cannot parse '{path}'. {e.problem}\n")
+        write_warning(f"unable to parse '{path}'. {e.problem}\n")
         return
 
     for task in tasks:
