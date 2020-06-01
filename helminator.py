@@ -58,7 +58,7 @@ def check_env_vars():
 
     if not slack_channel:
         raise EnvironmentError(
-                "environment variable 'HELMINATOR_SLACK_CHANNEL' not found!")
+                "environment variable 'HELMINATOR_SLACK_CHANNEL' not set!")
 
     Env_vars = namedtuple('Env_vars', ['search_dir',
                                        'slack_token',
