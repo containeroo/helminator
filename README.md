@@ -27,4 +27,4 @@ Helminator takes the following environment variables:
 
 # Slack App
 
-To receive Slack notification you must create a Slack Application. See the [official tutorial](https://github.com/slackapi/python-slackclient/blob/master/tutorial/01-creating-the-slack-app.md).
+To receive Slack notifications you have to create a Slack application. Please refer to the [official guide](https://github.com/slackapi/python-slackclient/blob/master/tutorial/01-creating-the-slack-app.md).
