@@ -11,6 +11,7 @@ It then checks if there is an update to a given Helm chart availible and sends o
 - [Ansible Kubernetes Community collection](https://github.com/ansible-collections/community.kubernetes)
 - Kubernetes Cluster
 - GitLab
+- Slack Application
 
 ## Configration
 
@@ -23,3 +24,8 @@ Helminator takes the following enivironment variables:
 |`HELMINATOR_ROOT_DIR`|Directory to scan (must point to the `roles` directory|`/path/to/playbook/roles`|
 |`HELMINATOR_SLACK_API_TOKEN`|Slack API Token|`xorb-abc-def`|
 |`HELMINATOR_SLACK_CHANNEL`|Slack channel to send message to|`#kubernetes`|
+
+# Slack App
+
+To receive Slack notification you must create a Slack Application. See the [official tutorial](https://github.com/slackapi/python-slackclient/blob/master/tutorial/01-creating-the-slack-app.md).
+
