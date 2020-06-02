@@ -7,7 +7,7 @@
 ## TL;DR
 
 Helminator scans your Ansible roles for Helm repositories and versions.
-It then checks if there is an update to a given Helm chart availible and sends out a Slack notification.
+It then checks if there is an update to a given Helm chart available and sends out a Slack notification.
 
 ## Requirements
 
