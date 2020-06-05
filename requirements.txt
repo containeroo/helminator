@@ -1,4 +1,4 @@
 PyYAML==5.3.1
 requests==2.23.0
 semver==2.10.1
-slackclient==2.6.1
+slackclient==2.7.1

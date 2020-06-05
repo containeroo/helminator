@@ -7,7 +7,7 @@ import logging.handlers
 
 
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
-errors, loglevel = False, None
+errors = False
 
 try:
     import requests
@@ -25,9 +25,8 @@ def check_env_vars():
     slack_token = os.environ.get("HELMINATOR_SLACK_API_TOKEN")
     slack_channel = os.environ.get("HELMINATOR_SLACK_CHANNEL")
 
-    global loglevel
     loglevel = os.environ.get("HELMINATOR_LOGLEVEL", "info").lower()
-   
+
     if not search_dir:
         raise EnvironmentError(
             "environment variable 'HELMINATOR_ROOT_DIR' not set!")
@@ -42,22 +41,21 @@ def check_env_vars():
 
     Env_vars = namedtuple('Env_vars', ['search_dir',
                                        'slack_token',
-                                       'slack_channel']
+                                       'slack_channel',
+                                       'loglevel'
+                                       ]
                           )
-    return Env_vars(search_dir, slack_token, slack_channel)
+    return Env_vars(search_dir, slack_token, slack_channel, loglevel)
 
 
-def setup_logger():
+def setup_logger(loglevel='info'):
     logging.getLogger("urllib3").setLevel(logging.WARNING)
 
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.WARNING)
-    
-    logging.TRACE = 5
-    logging.addLevelName(logging.TRACE, "TRACE")
+    root_logger.setLevel(logging.DEBUG)
 
     if loglevel == "critical":
-        loglevel = logging.critical
+        loglevel = logging.CRITICAL
     elif loglevel == "error":
         loglevel = logging.ERROR
     elif loglevel == "warning":
@@ -66,8 +64,6 @@ def setup_logger():
         loglevel = logging.INFO
     elif loglevel == "debug":
         loglevel = logging.DEBUG
-    elif loglevel == "trace":
-        loglevel = logging.TRACE
 
     default_format = logging.Formatter(
         "%(asctime)s [%(levelname)-7.7s] %(message)s")
@@ -108,8 +104,8 @@ def get_ansible_helm(path):
     try:
         with open(path) as stream:
             tasks = yaml.safe_load(stream)
-    except Exception as e:
-        logging.log(f"unable to parse '{path}'. {e.problem}\n", loglevel)
+    except Exception:
+        # ignore unparsable yaml files, since ansible already does this
         return
 
     for task in tasks:
@@ -127,7 +123,7 @@ def get_ansible_helm(path):
                     'name': chart_name,
                     'version': chart_version
                 }
-                logging.debug(f"found chart '{chart_name}' with version '{chart_version}'")
+                logging.debug(f"found chart '{chart_name}' in ansible with version '{chart_version}'")
                 ansible_helm_charts.append(chart)
             continue
 
@@ -140,7 +136,7 @@ def get_ansible_helm(path):
                     'name': repo_name,
                     'url': repo_url
                 }
-                logging.debug(f"found chart repository '{repo_name}' with url '{repo_url}'")
+                logging.debug(f"found chart repository '{repo_name}' in ansible with url '{repo_url}'")
                 ansible_chart_repos.append(repo)
 
 
@@ -154,7 +150,6 @@ def get_chart_updates():
         try:
             helm_chart_url = f"{ansible_chart_repo['url']}/index.yaml"
             repo_response = requests.get(url=helm_chart_url)
-            error = True   # 9.6
         except Exception as e:
             logging.error(f"unable to fetch Helm chart '{helm_chart_url}'. {str(e)}")
             errors = True
@@ -178,20 +173,24 @@ def get_chart_updates():
                 if not any(c for c in ansible_helm_charts if c['name'] == repo_chart['name']):
                     break
                 if not semver.VersionInfo.isvalid(repo_chart['version']):
-                    logging.warning(f"helm chart '{repo_chart['name']}' has an invalid version '{repo_chart['version']}'")
+                    logging.warning(f"helm chart '{repo_chart['name']}' has an invalid "
+                                    f"version '{repo_chart['version']}'")
                     break
                 ansible_chart_version = [charts['version'] for charts in ansible_helm_charts if
                                          charts['name'] == repo_chart['name']]
                 ansible_chart_version = ansible_chart_version[0]
                 if not ansible_chart_version:
                     logging.error(f"{repo_chart['name']} has no 'chart_version'")
-                    error = True
+                    errors = True
                     break
                 if not semver.VersionInfo.isvalid(ansible_chart_version):
-                    logging.warning(f"ansible task '{repo_chart['name']}' has an invalid version '{ansible_chart_version}'")
+                    logging.warning(f"chart '{repo_chart['name']}' in ansible has an invalid "
+                                    f"version '{ansible_chart_version}'")
                     break
                 if semver.match(f"{ansible_chart_version}", f">={repo_chart['version']}"):
-                    logging.debug(f"ignoring version '{repo_chart['version']}' of helm chart '{repo_chart['name']}'. current version defined in ansible is '{ansible_chart_version}'")
+                    logging.debug(f"ignoring version '{repo_chart['version']}' of "
+                                  f"helm chart '{repo_chart['name']}'. current version "
+                                  f"defined in ansible is '{ansible_chart_version}'")
                     continue
                 if semver.match(f"{latest_version}", f">={repo_chart['version']}"):
                     continue
@@ -203,7 +202,8 @@ def get_chart_updates():
                     'new_version': latest_version
                 }
                 chart_updates.append(repo_chart)
-                logging.info(f"found update for chart '{repo_chart['name']}': {ansible_chart_version} -> {latest_version}")
+                logging.info(f"found update for chart '{repo_chart['name']}': "
+                             f"{ansible_chart_version} -> {latest_version}")
 
 
 def send_slack(msg, slack_token, slack_channel):
@@ -212,18 +212,18 @@ def send_slack(msg, slack_token, slack_channel):
         slack_client.chat_postMessage(channel=slack_channel,
                                       text=msg)
     except SlackApiError as e:
-        raise SlackApiError(f"unable to send slack notification. {str(e)}")
+        pass
 
 
 def main():
     try:
         env_vars = check_env_vars()
     except Exception as e:
-        sys.stderr.write(e)
+        sys.stderr.write(str(e))
         sys.exit(1)
 
     try:
-        setup_logger()
+        setup_logger(loglevel=env_vars.loglevel)
     except Exception as e:
         logging.critical(f"cannot setup logger. {e}")
         sys.exit(1)
