@@ -1,9 +1,10 @@
 import os
-import sys
-from collections import namedtuple
-from pathlib import Path
 import logging
 import logging.handlers
+import sys
+
+from collections import namedtuple
+from pathlib import Path
 
 
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
