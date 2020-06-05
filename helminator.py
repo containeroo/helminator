@@ -50,20 +50,20 @@ def check_env_vars():
 
     if not search_dir:
         raise EnvironmentError(
-                "environment variable 'HELMINATOR_ROOT_DIR' not set!")
+            "environment variable 'HELMINATOR_ROOT_DIR' not set!")
 
     if not slack_token:
         raise EnvironmentError(
-                "environment variable 'HELMINATOR_SLACK_API_TOKEN' not set!")
+            "environment variable 'HELMINATOR_SLACK_API_TOKEN' not set!")
 
     if not slack_channel:
         raise EnvironmentError(
-                "environment variable 'HELMINATOR_SLACK_CHANNEL' not set!")
+            "environment variable 'HELMINATOR_SLACK_CHANNEL' not set!")
 
     Env_vars = namedtuple('Env_vars', ['search_dir',
                                        'slack_token',
                                        'slack_channel']
-    )
+                          )
     return Env_vars(search_dir, slack_token, slack_channel)
 
 
@@ -142,7 +142,7 @@ def get_chart_updates():
         except Exception as e:
             write_error(f"unable to fetch Helm chart '{helm_chart_url}'. {str(e)}")
             continue
-        
+
         if repo_response.status_code != 200:
             write_error(f"'{helm_chart_url}' returned: {str(e)}")
             continue
@@ -208,9 +208,9 @@ def main():
         write_fatal(f"unable to process yaml. {str(e)}")
 
     if chart_updates:
-        text = [f"Update for chart `{chart_update['name']}` available: "
-                f"version `{chart_update['old_version']}` -> "
-                f"`{chart_update['new_version']}`" for chart_update in chart_updates]
+        text = [f"The following chart update{'s are' if len(chart_updates) > 1 else ' is'} available:"]
+        text.append([f"{chart_update['name']}: `{chart_update['old_version']}` -> "
+                     f"`{chart_update['new_version']}`" for chart_update in chart_updates])
         text = '\n'.join(text)
         write_info(text)
 
