@@ -205,6 +205,7 @@ def get_chart_updates():
                 chart_updates.append(repo_chart)
                 logging.info(f"found update for chart '{repo_chart['name']}': "
                              f"{ansible_chart_version} -> {latest_version}")
+                break
 
 
 def send_slack(msg, slack_token, slack_channel):
