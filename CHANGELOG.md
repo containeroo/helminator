@@ -2,7 +2,12 @@
 
 [All Commits](https://github.com/containeroo/helminator/compare/v1.1.0...v1.2.0)
 
-Todo
+**Improvements:**
+
+- Skip prerelease versions (#12)
+- Improved version processing (#11)
+- Fix small typos
+- Add CHANGELOG
 
 ## [v1.1.0](https://github.com/containeroo/helminator/tree/v1.1.0) (2020-06-05)
 
