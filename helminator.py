@@ -152,6 +152,13 @@ def get_chart_updates():
     """
     global errors
     for ansible_chart_repo in ansible_chart_repos:
+        ansible_helm_charts_matching = [chart for chart in ansible_helm_charts if
+                                        chart['repo'] == ansible_chart_repo['name']]
+
+        if not ansible_helm_charts_matching:
+            logging.debug(f"skipping helm repository '{ansible_chart_repo['url']}' since no valid chart uses it")
+            continue
+
         logging.debug(f"processing helm repository '{ansible_chart_repo['url']}'")
         try:
             helm_chart_url = f"{ansible_chart_repo['url']}/index.yaml"
@@ -173,9 +180,6 @@ def get_chart_updates():
             errors = True
             continue
 
-        ansible_helm_charts_matching = [chart for chart in ansible_helm_charts if
-                                        chart['repo'] == ansible_chart_repo['name']]
-
         for repo_charts in repo_charts['entries'].items():
             if not any(chart for chart in ansible_helm_charts_matching if chart['name'] == repo_charts[0]):
                 continue
@@ -194,7 +198,7 @@ def get_chart_updates():
                 logging.debug(f"found version '{repo_chart['version']}' of "
                               f"helm chart '{repo_chart['name']}'. current version "
                               f"defined in ansible is '{ansible_chart_version}'")
-                versions.append(repo_chart['version'])
+                versions.extend([repo_chart['version']])
 
             latest_version = str(max(map(semver.VersionInfo.parse, versions)))
 
