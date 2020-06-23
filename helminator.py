@@ -6,6 +6,7 @@ import sys
 from collections import namedtuple
 from pathlib import Path
 
+
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
 
@@ -117,19 +118,13 @@ def get_ansible_helm(path):
                 segments = task['community.kubernetes.helm']['chart_ref'].split('/')
                 if len(segments) > 2:
                     continue
-                repo_name = segments[0]
                 chart_name = segments[-1]
                 chart_version = task['community.kubernetes.helm'].get('chart_version')
-                if not chart_version or not semver.VersionInfo.isvalid(chart_version):
-                    logging.warning(f"ansible helm task '{chart_name}' has an invalid "
-                                    f"version '{chart_version}'")
-                    continue
                 chart = {
                     'name': chart_name,
-                    'version': chart_version,
-                    'repo': repo_name
+                    'version': chart_version
                 }
-                logging.debug(f"found helm task '{chart_name}' in ansible with version '{chart_version}'")
+                logging.debug(f"found chart '{chart_name}' in ansible with version '{chart_version}'")
                 ansible_helm_charts.append(chart)
             continue
 
@@ -142,7 +137,7 @@ def get_ansible_helm(path):
                     'name': repo_name,
                     'url': repo_url
                 }
-                logging.debug(f"found helm_repository task '{repo_name}' in ansible with url '{repo_url}'")
+                logging.debug(f"found chart repository '{repo_name}' in ansible with url '{repo_url}'")
                 ansible_chart_repos.append(repo)
 
 
@@ -152,13 +147,6 @@ def get_chart_updates():
     """
     global errors
     for ansible_chart_repo in ansible_chart_repos:
-        ansible_helm_charts_matching = [chart for chart in ansible_helm_charts if
-                                        chart['repo'] == ansible_chart_repo['name']]
-
-        if not ansible_helm_charts_matching:
-            logging.debug(f"skipping helm repository '{ansible_chart_repo['url']}' since no valid chart uses it")
-            continue
-
         logging.debug(f"processing helm repository '{ansible_chart_repo['url']}'")
         try:
             helm_chart_url = f"{ansible_chart_repo['url']}/index.yaml"
@@ -181,36 +169,42 @@ def get_chart_updates():
             continue
 
         for repo_charts in repo_charts['entries'].items():
-            if not any(chart for chart in ansible_helm_charts_matching if chart['name'] == repo_charts[0]):
-                continue
-            versions = []
-            ansible_chart_version = [chart['version'] for chart in ansible_helm_charts_matching if
-                                     chart['name'] == repo_charts[0]]
-            ansible_chart_version = ansible_chart_version[0]
+            latest_version = "0.0.1"
             for repo_chart in repo_charts[1]:
+                if not any(c for c in ansible_helm_charts if c['name'] == repo_chart['name']):
+                    break
                 if not semver.VersionInfo.isvalid(repo_chart['version']):
                     logging.warning(f"helm chart '{repo_chart['name']}' has an invalid "
                                     f"version '{repo_chart['version']}'")
+                    break
+                ansible_chart_version = [charts['version'] for charts in ansible_helm_charts if
+                                         charts['name'] == repo_chart['name']]
+                ansible_chart_version = ansible_chart_version[0]
+                if not ansible_chart_version:
+                    logging.error(f"{repo_chart['name']} has no 'chart_version'")
+                    errors = True
+                    break
+                if not semver.VersionInfo.isvalid(ansible_chart_version):
+                    logging.warning(f"chart '{repo_chart['name']}' in ansible has an invalid "
+                                    f"version '{ansible_chart_version}'")
+                    break
+                if semver.match(f"{ansible_chart_version}", f">={repo_chart['version']}"):
+                    logging.debug(f"ignoring version '{repo_chart['version']}' of "
+                                  f"helm chart '{repo_chart['name']}'. current version "
+                                  f"defined in ansible is '{ansible_chart_version}'")
                     continue
-                version = semver.VersionInfo.parse(repo_chart['version'])
-                if version.prerelease or version.build:
+                if semver.match(f"{latest_version}", f">={repo_chart['version']}"):
                     continue
-                logging.debug(f"found version '{repo_chart['version']}' of "
-                              f"helm chart '{repo_chart['name']}'. current version "
-                              f"defined in ansible is '{ansible_chart_version}'")
-                versions.extend([repo_chart['version']])
+                latest_version = repo_chart['version']
 
-            latest_version = str(max(map(semver.VersionInfo.parse, versions)))
-
-            if semver.match(latest_version, f">{ansible_chart_version}"):
                 repo_chart = {
-                    'name': repo_charts[0],
+                    'name': repo_chart['name'],
                     'old_version': ansible_chart_version,
                     'new_version': latest_version
                 }
                 chart_updates.append(repo_chart)
                 logging.info(f"found update for chart '{repo_chart['name']}': "
-                             f"{ansible_chart_version} to {latest_version}")
+                             f"{ansible_chart_version} -> {latest_version}")
 
 
 def send_slack(msg, slack_token, slack_channel):

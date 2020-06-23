@@ -32,7 +32,7 @@ Helminator takes the following environment variables:
 |`HELMINATOR_ROOT_DIR`|Directory to scan|`/path/to/playbook`|
 |`HELMINATOR_SLACK_API_TOKEN`|Slack API Token|`xorb-abc-def`|
 |`HELMINATOR_SLACK_CHANNEL`|Slack channel to send message to|`#kubernetes`|
-|`HELMINATOR_LOGLEVEL`|Set loglevel (defaults to `info`)|one of `critical`, `error`, `warning`, `info`, `debug`|
+|`HELMINATOR_LOGLEVEL`|Set loglevel (defaults to `info`)|can either be `critical`, `error`, `warning`, `info`, `debug`|
 
 ### Slack App
 
