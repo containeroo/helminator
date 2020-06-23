@@ -197,8 +197,7 @@ def get_chart_updates():
                 if version.prerelease or version.build:
                     continue
                 logging.debug(f"found version '{repo_chart['version']}' of "
-                              f"helm chart '{repo_chart['name']}'. current version "
-                              f"defined in ansible is '{ansible_chart_version}'")
+                              f"helm chart '{repo_chart['name']}'")
                 versions.extend([repo_chart['version']])
 
             latest_version = str(max(map(semver.VersionInfo.parse, versions)))
@@ -212,6 +211,9 @@ def get_chart_updates():
                 chart_updates.append(repo_chart)
                 logging.info(f"found update for chart '{repo_chart['name']}': "
                              f"{ansible_chart_version} to {latest_version}")
+                continue
+            logging.debug(f"no update found for helm chart '{repo_charts[0]}'. "
+                          f"current version in ansible helm task is {ansible_chart_version}")
 
 
 def send_slack(msg, slack_token, slack_channel):
