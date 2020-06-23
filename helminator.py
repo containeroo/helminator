@@ -129,7 +129,7 @@ def get_ansible_helm(path):
                     'version': chart_version,
                     'repo': repo_name
                 }
-                logging.debug(f"found helm task '{chart_name}' in ansible with version '{chart_version}'")
+                logging.debug(f"found ansible helm task '{chart_name}' with version '{chart_version}'")
                 ansible_helm_charts.append(chart)
             continue
 
@@ -142,7 +142,7 @@ def get_ansible_helm(path):
                     'name': repo_name,
                     'url': repo_url
                 }
-                logging.debug(f"found helm_repository task '{repo_name}' in ansible with url '{repo_url}'")
+                logging.debug(f"found ansible helm_repository task '{repo_name}' with url '{repo_url}'")
                 ansible_chart_repos.append(repo)
 
 
@@ -164,7 +164,7 @@ def get_chart_updates():
             helm_chart_url = f"{ansible_chart_repo['url']}/index.yaml"
             repo_response = requests.get(url=helm_chart_url)
         except Exception as e:
-            logging.error(f"unable to fetch Helm chart '{helm_chart_url}'. {str(e)}")
+            logging.error(f"unable to fetch helm repository '{helm_chart_url}'. {str(e)}")
             errors = True
             continue
 
