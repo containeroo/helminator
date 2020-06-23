@@ -156,7 +156,8 @@ def get_chart_updates():
                                         chart['repo'] == ansible_chart_repo['name']]
 
         if not ansible_helm_charts_matching:
-            logging.debug(f"skipping helm repository '{ansible_chart_repo['url']}' since no valid chart uses it")
+            logging.debug(f"skipping helm repository '{ansible_chart_repo['url']}' since no valid ansible "
+                          f"helm task uses it")
             continue
 
         logging.debug(f"processing helm repository '{ansible_chart_repo['url']}'")
