@@ -8,10 +8,11 @@
 ![GitHub issues](https://img.shields.io/github/issues/containeroo/helminator?style=flat-square)
 ![Twitter Follow](https://img.shields.io/twitter/follow/containeroo?style=social)
 
-## TL;DR
+## Introduction
 
-Helminator scans your Ansible roles for Helm repositories and versions.
-It then checks if there is an update to a given Helm chart available and sends out a Slack notification.
+Helminator scans your Ansible playbook for helm and helm_repository tasks.
+It then checks if there is an update to any of the defined Helm charts available and sends out a Slack notification.
+Helminator is built to run in a CI envorinment. (e.g. GitLab CI)
 
 ## Requirements
 
@@ -23,7 +24,7 @@ It then checks if there is an update to a given Helm chart available and sends o
 
 ## Configration
 
-In the examples directory you can find an example playbook including the required GitLab Ci configuration.
+In the examples directory you can find an example playbook including the required GitLab CI configuration.
 
 Helminator takes the following environment variables:
 
@@ -32,8 +33,36 @@ Helminator takes the following environment variables:
 |`HELMINATOR_ROOT_DIR`|Directory to scan|`/path/to/playbook`|
 |`HELMINATOR_SLACK_API_TOKEN`|Slack API Token|`xorb-abc-def`|
 |`HELMINATOR_SLACK_CHANNEL`|Slack channel to send message to|`#kubernetes`|
-|`HELMINATOR_LOGLEVEL`|Set loglevel (defaults to `info`)|can either be `critical`, `error`, `warning`, `info`, `debug`|
+|`HELMINATOR_LOGLEVEL`|Set loglevel (defaults to `info`)|one of `critical`, `error`, `warning`, `info`, `debug`|
 
 ### Slack App
 
-To receive Slack notifications you have to create a Slack App. Please refer to the [this guide](https://github.com/slackapi/python-slackclient/blob/master/tutorial/01-creating-the-slack-app.md).
+To receive Slack notifications you have to create a Slack App. Please refer to [this guide](https://github.com/slackapi/python-slackclient/blob/master/tutorial/01-creating-the-slack-app.md).
+
+## Usage
+
+In the `examples` directory is an example Ansible playbook.
+
+### GitLab
+
+If you want to use Helminator in a GitLab CI / CD job, you can use the follwing `.gitlab-ci.yml` as an example:
+
+```yaml
+image: 
+  name: containeroo/helminator:latest
+  entrypoint: [""]
+
+stages:
+  - helminator
+
+helminator:
+  stage: helminator
+  only:
+    - schedules
+  script: python /app/helminator.py
+```
+
+In order to set the configration environment variables, go to your project (repository) containing the playbook. 
+Go to `Settings` -> `CI / CD` -> `Variabels` -> `Expand`.
+
+After you have set all variables you can create a pipeline schedule. This ensures your job runs regularly.
