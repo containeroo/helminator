@@ -78,8 +78,9 @@ def setup_logger(loglevel='info'):
 def process_yaml(search_dir, enable_pre=False):
     """iterate over directory and extract Helm chart name and version
 
-    Arguments:
+    Keyword Arguments:
         search_dir {str} -- path to directory
+        enable_pre {bool} -- process pre-releases (default: False)
     """
     search_dir = Path(search_dir)
     if not search_dir.is_dir():
@@ -100,8 +101,9 @@ def process_yaml(search_dir, enable_pre=False):
 def get_ansible_helm(path, enable_pre=False):
     """load ansible yamls and search for Helm chart name and version
 
-    Arguments:
+    Keyword Arguments:
         path {str} -- path to yaml
+        enable_pre {bool} -- process pre-releases (default: False)
     """
     try:
         with open(path) as stream:
@@ -161,6 +163,9 @@ def get_ansible_helm(path, enable_pre=False):
 def get_chart_updates(enable_pre=False):
     """get Helm chart yaml from repo and compare chart name and version with ansible
     chart name and version
+
+    Keyword Arguments:
+        enable_pre {bool} -- process pre-releases (default: False)
     """
     global errors
     for ansible_chart_repo in ansible_chart_repos:
