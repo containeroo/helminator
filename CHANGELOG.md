@@ -1,4 +1,15 @@
-## [v1.2.0](https://github.com/containeroo/helminator/tree/v1.2.0)
+## [v1.3.0](https://github.com/containeroo/helminator/tree/v1.3.0) (2020-XX-XX)
+
+[All Commits](https://github.com/containeroo/helminator/compare/v1.2.0...v1.3.0)
+
+**Improvements:**
+
+- Use packaging.version instead of semver library
+- Fix small typos
+
+**New features:**
+
+## [v1.2.0](https://github.com/containeroo/helminator/tree/v1.2.0) (2020-06-24)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v1.1.0...v1.2.0)
 

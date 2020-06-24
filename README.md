@@ -12,7 +12,7 @@
 
 Helminator scans your Ansible playbook for helm and helm_repository tasks.
 It then checks if there is an update to any of the defined Helm charts available and sends out a Slack notification.
-Helminator is built to run in a CI envorinment. (e.g. GitLab CI)
+Helminator is built to run in a CI environment (e.g. GitLab CI).
 
 ## Requirements
 
@@ -31,6 +31,7 @@ Helminator takes the following environment variables:
 |Variable|Description|Example|
 |:--------|:-----------|:-------|
 |`HELMINATOR_ROOT_DIR`|Directory to scan|`/path/to/playbook`|
+|`HELMINATOR_ENABLE_PRERELEASES`|Configure Helminator to process prereleases|`True` or `False`|
 |`HELMINATOR_SLACK_API_TOKEN`|Slack API Token|`xorb-abc-def`|
 |`HELMINATOR_SLACK_CHANNEL`|Slack channel to send message to|`#kubernetes`|
 |`HELMINATOR_LOGLEVEL`|Set loglevel (defaults to `info`)|one of `critical`, `error`, `warning`, `info`, `debug`|
