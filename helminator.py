@@ -11,8 +11,8 @@ errors = False
 
 try:
     import requests
+    import semver
     import yaml
-    from packaging import version
     from slack import WebClient
     from slack.errors import SlackApiError
 except Exception:
@@ -124,17 +124,12 @@ def get_ansible_helm(path, enable_pre=False):
                 repo_name = segments[0]
                 chart_name = segments[-1]
                 chart_version = task['community.kubernetes.helm'].get('chart_version')
-                if not chart_version:
-                    logging.warning(f"ansible helm task '{chart_name}' has no version")
-                    continue
-                try:
-                    version.Version(chart_version)
-                except version.InvalidVersion:
+                if not chart_version or not semver.VersionInfo.isvalid(chart_version):
                     logging.warning(f"ansible helm task '{chart_name}' has an invalid "
                                     f"version '{chart_version}'")
                     continue
-                current_version = version.parse(chart_version)
-                if current_version.is_prerelease and not enable_pre:
+                version = semver.VersionInfo.parse(chart_version)
+                if version.prerelease and not enable_pre:
                     logging.warning(f"skipping ansible helm task '{chart_name}' with version '{chart_version}' because"
                                     " it is a prerelease")
                     continue
@@ -207,14 +202,12 @@ def get_chart_updates(enable_pre=False):
                                      chart['name'] == chart_name]
             ansible_chart_version = ansible_chart_version[0]
             for repo_chart in repo_charts[1]:
-                try:
-                    version.Version(repo_chart['version'])
-                except version.InvalidVersion:
+                if not semver.VersionInfo.isvalid(repo_chart['version']):
                     logging.warning(f"helm chart '{repo_chart['name']}' has an invalid "
                                     f"version '{repo_chart['version']}'")
                     continue
-                current_version = version.parse(repo_chart['version'])
-                if current_version.is_prerelease and not enable_pre:
+                version = semver.VersionInfo.parse(repo_chart['version'])
+                if version.prerelease and not enable_pre:
                     logging.debug(f"skipping version '{repo_chart['version']}' of helm chart '{repo_chart['name']}' "
                                   f"because it is a prerelease")
                     continue
@@ -222,9 +215,9 @@ def get_chart_updates(enable_pre=False):
                               f"helm chart '{repo_chart['name']}'")
                 versions.extend([repo_chart['version']])
 
-            latest_version = str(max(map(version.parse, versions)))
+            latest_version = str(max(map(semver.VersionInfo.parse, versions)))
 
-            if version.parse(latest_version) > version.parse(ansible_chart_version):
+            if semver.match(latest_version, f">{ansible_chart_version}"):
                 repo_chart = {
                     'name': chart_name,
                     'old_version': ansible_chart_version,

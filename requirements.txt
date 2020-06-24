@@ -1,4 +1,4 @@
-packaging==20.4
 PyYAML==5.3.1
 requests==2.24.0
+semver==2.10.2
 slackclient==2.7.2
