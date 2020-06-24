@@ -209,7 +209,7 @@ def get_chart_updates():
                     'new_version': latest_version
                 }
                 chart_updates.append(repo_chart)
-                logging.info(f"found update for chart '{repo_chart['name']}': "
+                logging.info(f"found update for helm chart '{repo_chart['name']}': "
                              f"{ansible_chart_version} to {latest_version}")
                 continue
             logging.debug(f"no update found for helm chart '{repo_charts[0]}'. "
@@ -261,7 +261,7 @@ def main():
             slack_client.chat_postMessage(channel=env_vars.slack_channel,
                                           text=text)
         except SlackApiError as e:
-            logging.critical(f"unable to send Slack notification. {e.response['error']}")
+            logging.critical(f"unable to send slack notification. {e.response['error']}")
             sys.exit(1)
 
     sys.exit(1 if errors else 0)
