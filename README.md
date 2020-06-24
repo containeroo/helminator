@@ -31,7 +31,7 @@ Helminator takes the following environment variables:
 |Variable|Description|Example|
 |:--------|:-----------|:-------|
 |`HELMINATOR_ROOT_DIR`|Directory to scan|`/path/to/playbook`|
-|`HELMINATOR_ENABLE_PRERELEASES`|Configure Helminator to process prereleases|`True` or `False`|
+|`HELMINATOR_ENABLE_PRERELEASES`|Configure Helminator to process prereleases|`true` or `false`|
 |`HELMINATOR_SLACK_API_TOKEN`|Slack API Token|`xorb-abc-def`|
 |`HELMINATOR_SLACK_CHANNEL`|Slack channel to send message to|`#kubernetes`|
 |`HELMINATOR_LOGLEVEL`|Set loglevel (defaults to `info`)|one of `critical`, `error`, `warning`, `info`, `debug`|
