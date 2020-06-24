@@ -157,7 +157,7 @@ def get_chart_updates():
 
         if not ansible_helm_charts_matching:
             logging.debug(f"skipping helm repository '{ansible_chart_repo['url']}' since no valid ansible "
-                          f"helm task uses it")
+                          "helm task uses it")
             continue
 
         logging.debug(f"processing helm repository '{ansible_chart_repo['url']}'")
@@ -182,11 +182,12 @@ def get_chart_updates():
             continue
 
         for repo_charts in repo_charts['entries'].items():
-            if not any(chart for chart in ansible_helm_charts_matching if chart['name'] == repo_charts[0]):
+            chart_name = repo_charts[0]
+            if not any(chart for chart in ansible_helm_charts_matching if chart['name'] == chart_name):
                 continue
             versions = []
             ansible_chart_version = [chart['version'] for chart in ansible_helm_charts_matching if
-                                     chart['name'] == repo_charts[0]]
+                                     chart['name'] == chart_name]
             ansible_chart_version = ansible_chart_version[0]
             for repo_chart in repo_charts[1]:
                 if not semver.VersionInfo.isvalid(repo_chart['version']):
@@ -204,7 +205,7 @@ def get_chart_updates():
 
             if semver.match(latest_version, f">{ansible_chart_version}"):
                 repo_chart = {
-                    'name': repo_charts[0],
+                    'name': chart_name,
                     'old_version': ansible_chart_version,
                     'new_version': latest_version
                 }
