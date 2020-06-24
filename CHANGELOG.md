@@ -1,4 +1,16 @@
-## [v1.2.0](https://github.com/containeroo/helminator/tree/v1.2.0)
+## [v1.2.1](https://github.com/containeroo/helminator/tree/v1.2.1) (2020-06-24)
+
+[All Commits](https://github.com/containeroo/helminator/compare/v1.2.0...v1.2.1)
+
+**Improvements:**
+
+- Fix small typos
+
+**Dependencies:**
+
+- Updated dependencies
+
+## [v1.2.0](https://github.com/containeroo/helminator/tree/v1.2.0) (2020-06-24)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v1.1.0...v1.2.0)
 
