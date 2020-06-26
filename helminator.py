@@ -24,7 +24,7 @@ def check_env_vars():
     search_dir = os.environ.get("HELMINATOR_ROOT_DIR")
     slack_token = os.environ.get("HELMINATOR_SLACK_API_TOKEN")
     slack_channel = os.environ.get("HELMINATOR_SLACK_CHANNEL")
-    enable_prereleases = os.environ.get("HELMINATOR_ENABLE_PRERELEASES", False).lower() == "true"
+    enable_prereleases = os.environ.get("HELMINATOR_ENABLE_PRERELEASES", "false").lower() == "true"
 
     loglevel = os.environ.get("HELMINATOR_LOGLEVEL", "info").lower()
 
