@@ -249,7 +249,7 @@ def main():
     try:
         env_vars = check_env_vars()
     except Exception as e:
-        sys.stderr.write(str(e))
+        sys.stderr.write(f"{str(e)}\n")
         sys.exit(1)
 
     try:
