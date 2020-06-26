@@ -1,10 +1,12 @@
-import os
 import logging
 import logging.handlers
+import os
 import sys
 
 from collections import namedtuple
 from pathlib import Path
+
+__version__ = "1.3.0"
 
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
