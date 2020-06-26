@@ -1,3 +1,15 @@
+## [v1.3.0](https://github.com/containeroo/helminator/tree/v1.3.0) (2020-06-26)
+
+[All Commits](https://github.com/containeroo/helminator/compare/v1.2.1...v1.3.0)
+
+**Bug fixes:**
+
+- Version strings beginning with a `v` (e.g. `v1.0.0`) now work (#17)
+
+**New features:**
+
+ - Add optional `HELMINATOR_ENABLE_PRERELEASES` environment variable to enable or disable processing of pre-releases (#16)
+
 ## [v1.2.1](https://github.com/containeroo/helminator/tree/v1.2.1) (2020-06-24)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v1.2.0...v1.2.1)

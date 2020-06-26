@@ -1,10 +1,12 @@
-import os
 import logging
 import logging.handlers
+import os
 import sys
 
 from collections import namedtuple
 from pathlib import Path
+
+__version__ = "1.3.0"
 
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
@@ -24,6 +26,7 @@ def check_env_vars():
     search_dir = os.environ.get("HELMINATOR_ROOT_DIR")
     slack_token = os.environ.get("HELMINATOR_SLACK_API_TOKEN")
     slack_channel = os.environ.get("HELMINATOR_SLACK_CHANNEL")
+    enable_prereleases = os.environ.get("HELMINATOR_ENABLE_PRERELEASES", "false").lower() == "true"
 
     loglevel = os.environ.get("HELMINATOR_LOGLEVEL", "info").lower()
 
@@ -42,10 +45,11 @@ def check_env_vars():
     Env_vars = namedtuple('Env_vars', ['search_dir',
                                        'slack_token',
                                        'slack_channel',
-                                       'loglevel'
+                                       'loglevel',
+                                       'enable_prereleases'
                                        ]
                           )
-    return Env_vars(search_dir, slack_token, slack_channel, loglevel)
+    return Env_vars(search_dir, slack_token, slack_channel, loglevel, enable_prereleases)
 
 
 def setup_logger(loglevel='info'):
@@ -65,19 +69,19 @@ def setup_logger(loglevel='info'):
     elif loglevel == "debug":
         loglevel = logging.DEBUG
 
-    default_format = logging.Formatter(
-        "%(asctime)s [%(levelname)-7.7s] %(message)s")
+    default_format = logging.Formatter("%(asctime)s [%(levelname)-7.7s] %(message)s")
     console_logger = logging.StreamHandler(sys.stdout)
     console_logger.setLevel(loglevel)
     console_logger.setFormatter(default_format)
     root_logger.addHandler(console_logger)
 
 
-def process_yaml(search_dir):
+def process_yaml(search_dir, enable_prereleases=False):
     """iterate over directory and extract Helm chart name and version
 
-    Arguments:
+    Keyword Arguments:
         search_dir {str} -- path to directory
+        enable_prereleases {bool} -- process pre-releases (default: False)
     """
     search_dir = Path(search_dir)
     if not search_dir.is_dir():
@@ -89,17 +93,19 @@ def process_yaml(search_dir):
         if item.suffix not in ['.yml', '.yaml']:
             continue
         try:
-            get_ansible_helm(path=item.absolute())
+            get_ansible_helm(path=item.absolute(),
+                             enable_prereleases=enable_prereleases)
         except Exception as e:
             logging.error("unexpected exception while parsing yaml "
                           f"'{item.absolute}'. {str(e)}")
 
 
-def get_ansible_helm(path):
+def get_ansible_helm(path, enable_prereleases=False):
     """load ansible yamls and search for Helm chart name and version
 
-    Arguments:
+    Keyword Arguments:
         path {str} -- path to yaml
+        enable_prereleases {bool} -- process pre-releases (default: False)
     """
     try:
         with open(path) as stream:
@@ -120,9 +126,14 @@ def get_ansible_helm(path):
                 repo_name = segments[0]
                 chart_name = segments[-1]
                 chart_version = task['community.kubernetes.helm'].get('chart_version')
-                if not chart_version or not semver.VersionInfo.isvalid(chart_version):
+                if not chart_version or not semver.VersionInfo.isvalid(chart_version.lstrip('v')):
                     logging.warning(f"ansible helm task '{chart_name}' has an invalid "
                                     f"version '{chart_version}'")
+                    continue
+                version = semver.VersionInfo.parse(chart_version.lstrip('v'))
+                if version.prerelease and not enable_prereleases:
+                    logging.warning(f"skipping ansible helm task '{chart_name}' with version '{chart_version}' because"
+                                    " it is a pre-release")
                     continue
                 chart = {
                     'name': chart_name,
@@ -146,9 +157,12 @@ def get_ansible_helm(path):
                 ansible_chart_repos.append(repo)
 
 
-def get_chart_updates():
+def get_chart_updates(enable_prereleases=False):
     """get Helm chart yaml from repo and compare chart name and version with ansible
     chart name and version
+
+    Keyword Arguments:
+         enable_prereleases {bool} -- process pre-releases (default: False)
     """
     global errors
     for ansible_chart_repo in ansible_chart_repos:
@@ -156,7 +170,7 @@ def get_chart_updates():
                                         chart['repo'] == ansible_chart_repo['name']]
 
         if not ansible_helm_charts_matching:
-            logging.debug(f"skipping helm repository '{ansible_chart_repo['url']}' since no valid ansible "
+            logging.debug(f"skipping helm repository '{ansible_chart_repo['url']}' since no ansible "
                           "helm task uses it")
             continue
 
@@ -190,31 +204,36 @@ def get_chart_updates():
                                      chart['name'] == chart_name]
             ansible_chart_version = ansible_chart_version[0]
             for repo_chart in repo_charts[1]:
-                if not semver.VersionInfo.isvalid(repo_chart['version']):
+                if not semver.VersionInfo.isvalid(repo_chart['version'].lstrip('v')):
                     logging.warning(f"helm chart '{repo_chart['name']}' has an invalid "
                                     f"version '{repo_chart['version']}'")
                     continue
-                version = semver.VersionInfo.parse(repo_chart['version'])
-                if version.prerelease or version.build:
+                version = semver.VersionInfo.parse(repo_chart['version'].lstrip('v'))
+                if version.prerelease and not enable_prereleases:
+                    logging.debug(f"skipping version '{repo_chart['version']}' of helm chart '{repo_chart['name']}' "
+                                  f"because it is a pre-release")
                     continue
                 logging.debug(f"found version '{repo_chart['version']}' of "
                               f"helm chart '{repo_chart['name']}'")
                 versions.extend([repo_chart['version']])
 
-            latest_version = str(max(map(semver.VersionInfo.parse, versions)))
+            clean_versions = [version.lstrip('v') for version in versions]
+            latest_version = str(max(map(semver.VersionInfo.parse, clean_versions)))
 
-            if semver.match(latest_version, f">{ansible_chart_version}"):
+            latest_version = [version for version in versions if latest_version in version]
+
+            if semver.match(latest_version[0].lstrip('v'), f">{ansible_chart_version.lstrip('v')}"):
                 repo_chart = {
                     'name': chart_name,
                     'old_version': ansible_chart_version,
-                    'new_version': latest_version
+                    'new_version': latest_version[0]
                 }
                 chart_updates.append(repo_chart)
                 logging.info(f"found update for helm chart '{repo_chart['name']}': "
-                             f"{ansible_chart_version} to {latest_version}")
+                             f"'{ansible_chart_version}' to '{latest_version[0]}'")
                 continue
             logging.debug(f"no update found for helm chart '{repo_charts[0]}'. "
-                          f"current version in ansible helm task is {ansible_chart_version}")
+                          f"current version in ansible helm task is '{ansible_chart_version}'")
 
 
 def send_slack(msg, slack_token, slack_channel):
@@ -230,7 +249,7 @@ def main():
     try:
         env_vars = check_env_vars()
     except Exception as e:
-        sys.stderr.write(str(e))
+        sys.stderr.write(f"{str(e)}\n")
         sys.exit(1)
 
     try:
@@ -240,13 +259,14 @@ def main():
         sys.exit(1)
 
     try:
-        process_yaml(search_dir=env_vars.search_dir)
+        process_yaml(search_dir=env_vars.search_dir,
+                     enable_prereleases=env_vars.enable_prereleases)
     except Exception as e:
         logging.critical(f"unable to process ansible yaml. {str(e)}")
         sys.exit(1)
 
     try:
-        get_chart_updates()
+        get_chart_updates(enable_prereleases=env_vars.enable_prereleases)
     except Exception as e:
         logging.critical(f"unable to process charts. {str(e)}")
         sys.exit(1)
