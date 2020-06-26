@@ -69,8 +69,7 @@ def setup_logger(loglevel='info'):
     elif loglevel == "debug":
         loglevel = logging.DEBUG
 
-    default_format = logging.Formatter(
-        "%(asctime)s [%(levelname)-7.7s] %(message)s")
+    default_format = logging.Formatter("%(asctime)s [%(levelname)-7.7s] %(message)s")
     console_logger = logging.StreamHandler(sys.stdout)
     console_logger.setLevel(loglevel)
     console_logger.setFormatter(default_format)
@@ -82,7 +81,7 @@ def process_yaml(search_dir, enable_prereleases=False):
 
     Keyword Arguments:
         search_dir {str} -- path to directory
-        enable_pre {bool} -- process pre-releases (default: False)
+        enable_prereleases {bool} -- process pre-releases (default: False)
     """
     search_dir = Path(search_dir)
     if not search_dir.is_dir():
@@ -94,7 +93,8 @@ def process_yaml(search_dir, enable_prereleases=False):
         if item.suffix not in ['.yml', '.yaml']:
             continue
         try:
-            get_ansible_helm(path=item.absolute(), enable_prereleases=enable_prereleases)
+            get_ansible_helm(path=item.absolute(),
+                             enable_prereleases=enable_prereleases)
         except Exception as e:
             logging.error("unexpected exception while parsing yaml "
                           f"'{item.absolute}'. {str(e)}")
@@ -105,7 +105,7 @@ def get_ansible_helm(path, enable_prereleases=False):
 
     Keyword Arguments:
         path {str} -- path to yaml
-        enable_pre {bool} -- process pre-releases (default: False)
+        enable_prereleases {bool} -- process pre-releases (default: False)
     """
     try:
         with open(path) as stream:
@@ -162,7 +162,7 @@ def get_chart_updates(enable_prereleases=False):
     chart name and version
 
     Keyword Arguments:
-         enable_pre {bool} -- process pre-releases (default: False)
+         enable_prereleases {bool} -- process pre-releases (default: False)
     """
     global errors
     for ansible_chart_repo in ansible_chart_repos:
@@ -259,7 +259,8 @@ def main():
         sys.exit(1)
 
     try:
-        process_yaml(search_dir=env_vars.search_dir, enable_prereleases=env_vars.enable_prereleases)
+        process_yaml(search_dir=env_vars.search_dir,
+                     enable_prereleases=env_vars.enable_prereleases)
     except Exception as e:
         logging.critical(f"unable to process ansible yaml. {str(e)}")
         sys.exit(1)
