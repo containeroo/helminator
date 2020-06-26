@@ -1,4 +1,4 @@
-## [v1.3.0](https://github.com/containeroo/helminator/tree/v1.3.0) (2020-XX-XX)
+## [v1.3.0](https://github.com/containeroo/helminator/tree/v1.3.0) (2020-06-26)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v1.2.1...v1.3.0)
 
