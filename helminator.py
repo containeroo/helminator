@@ -213,15 +213,18 @@ def get_chart_updates(enable_prereleases=False):
                     continue
                 logging.debug(f"found version '{repo_chart['version']}' of "
                               f"helm chart '{repo_chart['name']}'")
-                versions.extend([repo_chart['version'].lstrip('v')])
+                versions.extend([repo_chart['version']])
 
-            latest_version = str(max(map(semver.VersionInfo.parse, versions)))
+            clean_versions = [version.lstrip('v') for version in versions]
+            latest_version = str(max(map(semver.VersionInfo.parse, clean_versions)))
 
-            if semver.match(latest_version.lstrip('v'), f">{ansible_chart_version.lstrip('v')}"):
+            latest_version = [version for version in versions if latest_version in version]
+
+            if semver.match(latest_version[0].lstrip('v'), f">{ansible_chart_version.lstrip('v')}"):
                 repo_chart = {
                     'name': chart_name,
                     'old_version': ansible_chart_version,
-                    'new_version': latest_version
+                    'new_version': latest_version[0]
                 }
                 chart_updates.append(repo_chart)
                 logging.info(f"found update for helm chart '{repo_chart['name']}': "
