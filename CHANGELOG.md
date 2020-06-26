@@ -8,7 +8,7 @@
 
 **New features:**
 
- - Add optional `HELMINATOR_ENABLE_PRERELEASES` environment variable to enable or disable processing of prereleases (#16)
+ - Add optional `HELMINATOR_ENABLE_PRERELEASES` environment variable to enable or disable processing of pre-releases (#16)
 
 ## [v1.2.1](https://github.com/containeroo/helminator/tree/v1.2.1) (2020-06-24)
 

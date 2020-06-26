@@ -131,7 +131,7 @@ def get_ansible_helm(path, enable_prereleases=False):
                 version = semver.VersionInfo.parse(chart_version.lstrip('v'))
                 if version.prerelease and not enable_prereleases:
                     logging.warning(f"skipping ansible helm task '{chart_name}' with version '{chart_version}' because"
-                                    " it is a prerelease")
+                                    " it is a pre-release")
                     continue
                 chart = {
                     'name': chart_name,
@@ -209,7 +209,7 @@ def get_chart_updates(enable_prereleases=False):
                 version = semver.VersionInfo.parse(repo_chart['version'].lstrip('v'))
                 if version.prerelease and not enable_prereleases:
                     logging.debug(f"skipping version '{repo_chart['version']}' of helm chart '{repo_chart['name']}' "
-                                  f"because it is a prerelease")
+                                  f"because it is a pre-release")
                     continue
                 logging.debug(f"found version '{repo_chart['version']}' of "
                               f"helm chart '{repo_chart['name']}'")
@@ -228,10 +228,10 @@ def get_chart_updates(enable_prereleases=False):
                 }
                 chart_updates.append(repo_chart)
                 logging.info(f"found update for helm chart '{repo_chart['name']}': "
-                             f"{ansible_chart_version} to {latest_version}")
+                             f"'{ansible_chart_version}' to '{latest_version[0]}'")
                 continue
             logging.debug(f"no update found for helm chart '{repo_charts[0]}'. "
-                          f"current version in ansible helm task is {ansible_chart_version}")
+                          f"current version in ansible helm task is '{ansible_chart_version}'")
 
 
 def send_slack(msg, slack_token, slack_channel):
