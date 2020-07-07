@@ -148,7 +148,7 @@ def get_ansible_helm(path, enable_prereleases=False):
             if not any(repo for repo in ansible_chart_repos if
                        repo['name'] == task['community.kubernetes.helm_repository']['name']):
                 repo_name = task['community.kubernetes.helm_repository']['name']
-                repo_url = task['community.kubernetes.helm_repository']['repo_url']
+                repo_url = task['community.kubernetes.helm_repository']['repo_url'].rstrip('/')
                 repo = {
                     'name': repo_name,
                     'url': repo_url
