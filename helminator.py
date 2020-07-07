@@ -148,7 +148,7 @@ def get_ansible_helm(path, enable_prereleases=False):
             if not any(repo for repo in ansible_chart_repos if
                        repo['name'] == task['community.kubernetes.helm_repository']['name']):
                 repo_name = task['community.kubernetes.helm_repository']['name']
-                repo_url = task['community.kubernetes.helm_repository']['repo_url']
+                repo_url = task['community.kubernetes.helm_repository']['repo_url'].rstrip('/')
                 repo = {
                     'name': repo_name,
                     'url': repo_url
@@ -176,7 +176,7 @@ def get_chart_updates(enable_prereleases=False):
 
         logging.debug(f"processing helm repository '{ansible_chart_repo['url']}'")
         try:
-            helm_chart_url = f"{ansible_chart_repo['url'].rstrip('/')}/index.yaml"
+            helm_chart_url = f"{ansible_chart_repo['url']}/index.yaml"
             repo_response = requests.get(url=helm_chart_url)
         except Exception as e:
             logging.error(f"unable to fetch helm repository '{helm_chart_url}'. {str(e)}")
