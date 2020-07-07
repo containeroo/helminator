@@ -1,3 +1,11 @@
+## [v1.3.1](https://github.com/containeroo/helminator/tree/v1.3.1) (2020-07-07)
+
+[All Commits](https://github.com/containeroo/helminator/compare/v1.3.0...v1.3.1)
+
+**Bug fixes:**
+
+- Helm repo urls with a trailing slash are now parsed correctly (#21)
+
 ## [v1.3.0](https://github.com/containeroo/helminator/tree/v1.3.0) (2020-06-26)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v1.2.1...v1.3.0)

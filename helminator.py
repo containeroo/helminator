@@ -176,7 +176,7 @@ def get_chart_updates(enable_prereleases=False):
 
         logging.debug(f"processing helm repository '{ansible_chart_repo['url']}'")
         try:
-            helm_chart_url = f"{ansible_chart_repo['url']}/index.yaml"
+            helm_chart_url = f"{ansible_chart_repo['url'].rstrip('/')}/index.yaml"
             repo_response = requests.get(url=helm_chart_url)
         except Exception as e:
             logging.error(f"unable to fetch helm repository '{helm_chart_url}'. {str(e)}")
