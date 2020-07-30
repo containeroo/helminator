@@ -1,3 +1,11 @@
+## [v1.4.0](https://github.com/containeroo/helminator/tree/v1.4.0) (2020-07-XX)
+
+[All Commits](https://github.com/containeroo/helminator/compare/v1.3.1...v1.4.0)
+
+**New features:**
+
+- Add support for `with_items` in `community.kubernetes.helm_repository` tasks
+
 ## [v1.3.1](https://github.com/containeroo/helminator/tree/v1.3.1) (2020-07-07)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v1.3.0...v1.3.1)
