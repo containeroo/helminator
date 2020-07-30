@@ -119,7 +119,7 @@ def get_ansible_helm(path, enable_prereleases=False):
     for task in tasks:
         if not isinstance(task, dict):
             continue
-        if task.get('community.kubernetes.helm'):
+        if task.get('community.kubernetes.helm') or task.get('pre_tasks').get('community.kubernetes.helm') or task.get('tasks').get('community.kubernetes.helm'):
             if not any(chart for chart in ansible_helm_charts if
                        chart == task['community.kubernetes.helm']['chart_ref']):
                 segments = task['community.kubernetes.helm']['chart_ref'].split('/')
@@ -146,7 +146,7 @@ def get_ansible_helm(path, enable_prereleases=False):
                 ansible_helm_charts.append(chart)
             continue
 
-        if task.get('community.kubernetes.helm_repository'):
+        if task.get('community.kubernetes.helm_repository') or task.get('pre_tasks').get('community.kubernetes.helm') or task.get('tasks').get('community.kubernetes.helm'):
             if not any(repo for repo in ansible_chart_repos if
                        repo['name'] == task['community.kubernetes.helm_repository']['name']):
                 repo_name = task['community.kubernetes.helm_repository']['name']
