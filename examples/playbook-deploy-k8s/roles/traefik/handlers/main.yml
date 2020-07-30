@@ -1,4 +1,0 @@
----
-- name: Restart Traefik
-  shell: kubectl delete pod -n kube-system $(kubectl get pod -n kube-system -lapp.kubernetes.io/name=traefik -o jsonpath="{.items[0].metadata.name}")
-  become: true

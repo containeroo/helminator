@@ -1,7 +1,0 @@
-nodePathMap:
-- node: DEFAULT_PATH_FOR_NON_LISTED_NODES
-  paths:
-  - {{ hdd_path }}
-storageClass:
-  defaultClass: false
-  name: hdd
