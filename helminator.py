@@ -2,14 +2,16 @@ import logging
 import logging.handlers
 import os
 import sys
+import re
 
 from collections import namedtuple
 from pathlib import Path
 
-__version__ = "1.3.0"
+__version__ = "1.4.0"
 
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
+pattern = re.compile(r"^{{.*\.(\w+)  ?}}")
 
 try:
     import requests
@@ -107,6 +109,69 @@ def get_ansible_helm(path, enable_prereleases=False):
         path {str} -- path to yaml
         enable_prereleases {bool} -- process pre-releases (default: False)
     """
+    def _extract_ansible_helm_task(item):
+        if not any(chart for chart in ansible_helm_charts if
+                   chart == item['community.kubernetes.helm']['chart_ref']):
+            segments = item['community.kubernetes.helm']['chart_ref'].split('/')
+            if len(segments) > 2:
+                return
+            repo_name = segments[0]
+            chart_name = segments[-1]
+            chart_version = item['community.kubernetes.helm'].get('chart_version')
+            if not chart_version or not semver.VersionInfo.isvalid(chart_version.lstrip('v')):
+                logging.warning(f"ansible helm task '{chart_name}' has an invalid "
+                                f"version '{chart_version}'")
+                return
+            version = semver.VersionInfo.parse(chart_version.lstrip('v'))
+            if version.prerelease and not enable_prereleases:
+                logging.warning(f"skipping ansible helm task '{chart_name}' with version '{chart_version}' because"
+                                " it is a pre-release")
+                return
+            chart = {
+                'name': chart_name,
+                'version': chart_version,
+                'repo': repo_name
+            }
+            logging.debug(f"found ansible helm task '{chart_name}' with version '{chart_version}'")
+            ansible_helm_charts.append(chart)
+
+    def _extract_ansible_helm_repository_task(item):
+        if not any(repo for repo in ansible_chart_repos if
+                   repo['name'] == item['community.kubernetes.helm_repository']['name']):
+            if item.get('with_items'):
+                item_repo_name = re.findall(pattern, item['community.kubernetes.helm_repository']['name'])
+                if not item_repo_name:
+                    logging.warning("could not find ansible helm_repository name in "
+                                    f"'{item['community.kubernetes.helm_repository']['name']}'")
+                    return
+                item_repo_name = item_repo_name[0]
+
+                item_repo_url = re.findall(pattern, item['community.kubernetes.helm_repository']['repo_url'])
+                if not item_repo_url:
+                    logging.warning("could not find ansible helm_repository url in "
+                                    f"'{item['community.kubernetes.helm_repository']['repo_url']}'")
+                    return
+                item_repo_url = item_repo_url[0]
+
+                for _item in item['with_items']:
+                    repo = {
+                        'name': _item[item_repo_name],
+                        'url': _item[item_repo_url].rstrip('/')
+                    }
+                    logging.debug(
+                        f"found ansible helm_repository task '{_item[item_repo_name]}' with "
+                        f"url '{_item[item_repo_url]}'")
+                    ansible_chart_repos.append(repo)
+                return
+            repo_name = item['community.kubernetes.helm_repository']['name']
+            repo_url = item['community.kubernetes.helm_repository']['repo_url'].rstrip('/')
+            repo = {
+                'name': repo_name,
+                'url': repo_url
+            }
+            logging.debug(f"found ansible helm_repository task '{repo_name}' with url '{repo_url}'")
+            ansible_chart_repos.append(repo)
+
     try:
         with open(path) as stream:
             tasks = yaml.safe_load(stream)
@@ -117,44 +182,22 @@ def get_ansible_helm(path, enable_prereleases=False):
     for task in tasks:
         if not isinstance(task, dict):
             continue
+        if task.get('pre_tasks'):
+            for pre_task in task['pre_tasks']:
+                if pre_task.get('community.kubernetes.helm'):
+                    _extract_ansible_helm_task(pre_task)
+                if pre_task.get('community.kubernetes.helm_repository'):
+                    _extract_ansible_helm_repository_task(pre_task)
+        if task.get('tasks'):
+            for _task in task['tasks']:
+                if _task.get('community.kubernetes.helm'):
+                    _extract_ansible_helm_task(_task)
+                if _task.get('community.kubernetes.helm_repository'):
+                    _extract_ansible_helm_repository_task(_task)
         if task.get('community.kubernetes.helm'):
-            if not any(chart for chart in ansible_helm_charts if
-                       chart == task['community.kubernetes.helm']['chart_ref']):
-                segments = task['community.kubernetes.helm']['chart_ref'].split('/')
-                if len(segments) > 2:
-                    continue
-                repo_name = segments[0]
-                chart_name = segments[-1]
-                chart_version = task['community.kubernetes.helm'].get('chart_version')
-                if not chart_version or not semver.VersionInfo.isvalid(chart_version.lstrip('v')):
-                    logging.warning(f"ansible helm task '{chart_name}' has an invalid "
-                                    f"version '{chart_version}'")
-                    continue
-                version = semver.VersionInfo.parse(chart_version.lstrip('v'))
-                if version.prerelease and not enable_prereleases:
-                    logging.warning(f"skipping ansible helm task '{chart_name}' with version '{chart_version}' because"
-                                    " it is a pre-release")
-                    continue
-                chart = {
-                    'name': chart_name,
-                    'version': chart_version,
-                    'repo': repo_name
-                }
-                logging.debug(f"found ansible helm task '{chart_name}' with version '{chart_version}'")
-                ansible_helm_charts.append(chart)
-            continue
-
+            _extract_ansible_helm_task(task)
         if task.get('community.kubernetes.helm_repository'):
-            if not any(repo for repo in ansible_chart_repos if
-                       repo['name'] == task['community.kubernetes.helm_repository']['name']):
-                repo_name = task['community.kubernetes.helm_repository']['name']
-                repo_url = task['community.kubernetes.helm_repository']['repo_url'].rstrip('/')
-                repo = {
-                    'name': repo_name,
-                    'url': repo_url
-                }
-                logging.debug(f"found ansible helm_repository task '{repo_name}' with url '{repo_url}'")
-                ansible_chart_repos.append(repo)
+            _extract_ansible_helm_repository_task(task)
 
 
 def get_chart_updates(enable_prereleases=False):
