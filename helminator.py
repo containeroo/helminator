@@ -2,14 +2,16 @@ import logging
 import logging.handlers
 import os
 import sys
+import re
 
 from collections import namedtuple
 from pathlib import Path
 
-__version__ = "1.3.0"
+__version__ = "1.4.0"
 
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
+pattern = re.compile(r"^{{.*\.(\w+)  ?}}")
 
 try:
     import requests
@@ -149,12 +151,33 @@ def get_ansible_helm(path, enable_prereleases=False):
                        repo['name'] == task['community.kubernetes.helm_repository']['name']):
                 repo_name = task['community.kubernetes.helm_repository']['name']
                 repo_url = task['community.kubernetes.helm_repository']['repo_url'].rstrip('/')
-                repo = {
-                    'name': repo_name,
-                    'url': repo_url
-                }
-                logging.debug(f"found ansible helm_repository task '{repo_name}' with url '{repo_url}'")
-                ansible_chart_repos.append(repo)
+                if not task.get('with_items'):
+                    repo = {
+                        'name': repo_name,
+                        'url': repo_url
+                    }
+                    logging.debug(f"found ansible helm_repository task '{repo_name}' with url '{repo_url}'")
+                    ansible_chart_repos.append(repo)
+
+                item_repo_name = re.findall(repo_name)
+                if not item_repo_name:
+                    logging.warning(f"could not find ansible helm_repository name in '{repo_name}'")
+                    continue
+                item_repo_name = item_repo_name[0]
+
+                item_repo_url = re.findall(repo_url)
+                if not item_repo_url:
+                    logging.warning(f"could not find ansible helm_repository url in '{repo_url}'")
+                    continue
+                item_repo_url = item_repo_url[0]
+
+                for item in task[with_items]:
+                    repo = {
+                        'name': item[item_repo_name],
+                        'url': item[item_repo_url]
+                    }
+                    logging.debug(f"found ansible helm_repository task '{item[item_repo_name]}' with url '{item[item_repo_url]}'")
+                    ansible_chart_repos.append(repo)
 
 
 def get_chart_updates(enable_prereleases=False):
