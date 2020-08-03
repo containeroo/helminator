@@ -6,6 +6,10 @@
 
 - Add support for tasks with or without FQCN: eg. `helm` instead of `community.kubernetes.helm`
 
+**Bug fixes:**
+
+- Skip `collections` folder
+
 **Dependencies:**
 
 - Updated dependencies
