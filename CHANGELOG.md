@@ -1,3 +1,19 @@
+## [v1.5.0](https://github.com/containeroo/helminator/tree/v1.5.0) (2020-08-XX)
+
+[All Commits](https://github.com/containeroo/helminator/compare/v1.4.0...v1.5.0)
+
+**New features:**
+
+- Add support for tasks with or without FQCN: eg. `helm` instead of `community.kubernetes.helm`
+
+**Dependencies:**
+
+- Updated dependencies
+
+**Other changes:**
+
+- Moved `examples/` directory to seperate GitHub repository
+
 ## [v1.4.0](https://github.com/containeroo/helminator/tree/v1.4.0) (2020-07-30)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v1.3.1...v1.4.0)
