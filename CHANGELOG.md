@@ -1,3 +1,27 @@
+## [v1.5.0](https://github.com/containeroo/helminator/tree/v1.5.0) (2020-08-04)
+
+[All Commits](https://github.com/containeroo/helminator/compare/v1.4.0...v1.5.0)
+
+**New features:**
+
+- Add support for tasks with or without FQCN: eg. `helm` instead of `community.kubernetes.helm`
+
+**Improvements:**
+
+- Show `repo_name/chart_name` in log output instead of just the chart name: eg. `argo/argo-cd` instead of `argo-cd`
+
+**Bug fixes:**
+
+- Skip `collections` folder
+
+**Dependencies:**
+
+- Updated dependencies
+
+**Other changes:**
+
+- Moved `examples/` directory to separate GitHub repository
+
 ## [v1.4.0](https://github.com/containeroo/helminator/tree/v1.4.0) (2020-07-30)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v1.3.1...v1.4.0)
