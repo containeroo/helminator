@@ -16,7 +16,7 @@
 
 **Other changes:**
 
-- Moved `examples/` directory to seperate GitHub repository
+- Moved `examples/` directory to separate GitHub repository
 
 ## [v1.4.0](https://github.com/containeroo/helminator/tree/v1.4.0) (2020-07-30)
 
