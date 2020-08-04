@@ -12,6 +12,8 @@ __version__ = "1.5.0"
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
 pattern = re.compile(r"^{{.*\.(\w+)  ?}}")
+helm_task_names = ['community.kubernetes.helm', 'helm']
+helm_repository_task_names = ['community.kubernetes.helm_repository', 'helm_repository']
 
 try:
     import requests
@@ -113,26 +115,19 @@ def get_ansible_helm(path, enable_prereleases=False):
     """
 
     def _parse_ansible_helm_task(item):
-        if item.get('community.kubernetes.helm'):
-            _extract_ansible_helm_task(chart_ref=item['community.kubernetes.helm']['chart_ref'],
-                                       chart_version=item['community.kubernetes.helm']['chart_version'] if
-                                       item['community.kubernetes.helm'].get('chart_version') else None)
-        if item.get('helm'):
-            _extract_ansible_helm_task(chart_ref=item['helm']['chart_ref'],
-                                       chart_version=item['helm']['chart_version'] if
-                                       item['helm'].get('chart_version') else None)
+        for task_name in helm_task_names:
+            if item.get(task_name):
+                _extract_ansible_helm_task(chart_ref=item[task_name]['chart_ref'],
+                                           chart_version=item[task_name]['chart_version'] if
+                                           item[task_name].get('chart_version') else None)
 
     def _parse_ansible_helm_repository_task(item):
-        if item.get('community.kubernetes.helm_repository'):
-            _extract_ansible_helm_repository_task(
-                repo_name=item['community.kubernetes.helm_repository']['name'],
-                repo_url=item['community.kubernetes.helm_repository']['repo_url'],
-                with_items=item['with_items'] if item.get('with_items') else None)
-        if item.get('helm_repository'):
-            _extract_ansible_helm_repository_task(
-                repo_name=item['helm_repository']['name'],
-                repo_url=item['helm_repository']['repo_url'],
-                with_items=item['with_items'] if item.get('with_items') else None)
+        for task_name in helm_repository_task_names:
+            if item.get(task_name):
+                _extract_ansible_helm_repository_task(
+                    repo_name=item[task_name]['name'],
+                    repo_url=item[task_name]['repo_url'],
+                    with_items=item['with_items'] if item.get('with_items') else None)
 
     def _extract_ansible_helm_task(chart_ref, chart_version):
         if not any(chart for chart in ansible_helm_charts if chart == chart_ref):
