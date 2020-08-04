@@ -6,6 +6,10 @@
 
 - Add support for tasks with or without FQCN: eg. `helm` instead of `community.kubernetes.helm`
 
+**Improvements:**
+
+- Show `repo_name/chart_name` in log output instead of just the chart name: eg. `argo/argo-cd` instead of `argo-cd`
+
 **Bug fixes:**
 
 - Skip `collections` folder

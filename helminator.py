@@ -137,12 +137,13 @@ def get_ansible_helm(path, enable_prereleases=False):
             repo_name = segments[0]
             chart_name = segments[-1]
             if not chart_version or not semver.VersionInfo.isvalid(chart_version.lstrip('v')):
-                logging.warning(f"ansible helm task '{chart_name}' has an invalid version '{chart_version}'")
+                logging.warning(f"ansible helm task '{repo_name}/{chart_name}' has"
+                                f" an invalid version '{chart_version}'")
                 return
             version = semver.VersionInfo.parse(chart_version.lstrip('v'))
             if version.prerelease and not enable_prereleases:
-                logging.warning(f"skipping ansible helm task '{chart_name}' with version '{chart_version}' because"
-                                " it is a pre-release")
+                logging.warning(f"skipping ansible helm task '{repo_name}/{chart_name}' with version '{chart_version}'"
+                                "because it is a pre-release")
                 return
             chart = {
                 'name': chart_name,
