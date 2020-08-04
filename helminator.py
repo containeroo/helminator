@@ -154,7 +154,7 @@ def get_ansible_helm(path, enable_prereleases=False):
                 'version': chart_version,
                 'repo': repo_name
             }
-            logging.debug(f"found ansible helm task '{chart_name}' with version '{chart_version}'")
+            logging.debug(f"found ansible helm task '{repo_name}/{chart_name}' with version '{chart_version}'")
             ansible_helm_charts.append(chart)
 
     def _extract_ansible_helm_repository_task(repo_name, repo_url, with_items):
