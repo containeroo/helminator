@@ -42,7 +42,7 @@ To receive Slack notifications you have to create a Slack App. Please refer to [
 
 ## Usage
 
-Ansible Playbook example: [deploy-k8s](https://github.com/containeroo/deploy-k8s)
+Ansible Playbook example: [playbook-k8s](https://github.com/containeroo/playbook-k8s)
 
 ### GitLab
 
