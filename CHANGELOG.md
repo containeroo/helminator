@@ -1,3 +1,16 @@
+## [v1.5.1](https://github.com/containeroo/helminator/tree/v1.5.1) (2020-08-10)
+
+[All Commits](https://github.com/containeroo/helminator/compare/v1.5.0...v1.5.1)
+
+**Improvements:**
+
+- Use unused `send_slack` function
+
+**Dependencies:**
+
+- Updated slackclient dependency (#28)
+- Docker image now uses python 3.8 (#27)
+
 ## [v1.5.0](https://github.com/containeroo/helminator/tree/v1.5.0) (2020-08-04)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v1.4.0...v1.5.0)
