@@ -298,7 +298,7 @@ def send_slack(msg, slack_token, slack_channel):
         slack_client.chat_postMessage(channel=slack_channel,
                                       text=msg)
     except SlackApiError as e:
-        pass
+        raise
 
 
 def main():
@@ -334,9 +334,9 @@ def main():
         text = '\n'.join(text)
 
         try:
-            slack_client = WebClient(token=env_vars.slack_token)
-            slack_client.chat_postMessage(channel=env_vars.slack_channel,
-                                          text=text)
+            send_slack(msg=text,
+                       slack_token=env_vars.slack_token,
+                       slack_channel=env_vars.slack_channel)
         except SlackApiError as e:
             logging.critical(f"unable to send slack notification. {e.response['error']}")
             sys.exit(1)
