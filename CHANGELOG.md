@@ -1,3 +1,16 @@
+## [v1.6.0](https://github.com/containeroo/helminator/tree/v1.6.0) (2020-09-27)
+
+[All Commits](https://github.com/containeroo/helminator/compare/v1.5.2...v1.6.0)
+
+**New features:**
+
+- Add support for variables in `with_items` tasks
+- New optional environment variable `HELMINATOR_VARS_FILE` to define an Ansible vars file
+
+**Dependencies:**
+
+- Updated slackclient dependency (#32)
+
 ## [v1.5.2](https://github.com/containeroo/helminator/tree/v1.5.2) (2020-09-14)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v1.5.1...v1.5.2)
