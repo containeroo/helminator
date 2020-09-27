@@ -28,13 +28,14 @@ In the examples directory you can find an example playbook including the require
 
 Helminator takes the following environment variables:
 
-|Variable|Description|Example|
-|:--------|:-----------|:-------|
-|`HELMINATOR_ROOT_DIR`|Directory to scan|`/path/to/playbook`|
-|`HELMINATOR_ENABLE_PRERELEASES`|Enable pre-release processing (defaults to `false`)|`true` or `false`|
-|`HELMINATOR_SLACK_API_TOKEN`|Slack API Token|`xorb-abc-def`|
-|`HELMINATOR_SLACK_CHANNEL`|Slack channel to send message to|`#kubernetes`|
-|`HELMINATOR_LOGLEVEL`|Set loglevel (defaults to `info`)|one of `critical`, `error`, `warning`, `info`, `debug`|
+| Variable                        | Description                                         | Example                                                |
+| :------------------------------ | :-------------------------------------------------- | :----------------------------------------------------- |
+| `HELMINATOR_ROOT_DIR`           | Directory to scan                                   | `/path/to/playbook`                                    |
+| `HELMINATOR_ENABLE_PRERELEASES` | Enable pre-release processing (defaults to `false`) | `true` or `false`                                      |
+| `HELMINATOR_SLACK_API_TOKEN`    | Slack API Token                                     | `xorb-abc-def`                                         |
+| `HELMINATOR_SLACK_CHANNEL`      | Slack channel to send message to                    | `#kubernetes`                                          |
+| `HELMINATOR_LOGLEVEL`           | Set loglevel (defaults to `info`)                   | one of `critical`, `error`, `warning`, `info`, `debug` |
+| `HELMINATOR_VARS_FILE`          | path to file with extra variables                   | `/path/to/playbook/vars/main.yml`                      |
 
 ### Slack App
 
@@ -49,7 +50,7 @@ Ansible Playbook example: [playbook-k8s](https://github.com/containeroo/playbook
 If you want to use Helminator in a GitLab CI / CD job, you can use the follwing `.gitlab-ci.yml` as an example:
 
 ```yaml
-image: 
+image:
   name: containeroo/helminator:latest
   entrypoint: [""]
 
@@ -63,7 +64,7 @@ helminator:
   script: python /app/helminator.py
 ```
 
-In order to set the configration environment variables, go to your project (repository) containing the playbook. 
+In order to set the configration environment variables, go to your project (repository) containing the playbook.  
 Go to `Settings` -> `CI / CD` -> `Variabels` -> `Expand`.
 
 After you have set all variables you can create a pipeline schedule. This ensures your job runs regularly.

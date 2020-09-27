@@ -34,6 +34,8 @@ def check_env_vars():
 
     loglevel = os.environ.get("HELMINATOR_LOGLEVEL", "info").lower()
 
+    vars_file = os.environ.get("HELMINATOR_VARS_FILE")
+
     if not search_dir:
         raise EnvironmentError(
             "environment variable 'HELMINATOR_ROOT_DIR' not set!")
@@ -50,10 +52,11 @@ def check_env_vars():
                                        'slack_token',
                                        'slack_channel',
                                        'loglevel',
-                                       'enable_prereleases'
+                                       'enable_prereleases',
+                                       'vars_file',
                                        ]
                           )
-    return Env_vars(search_dir, slack_token, slack_channel, loglevel, enable_prereleases)
+    return Env_vars(search_dir, slack_token, slack_channel, loglevel, enable_prereleases, vars_file)
 
 
 def setup_logger(loglevel='info'):
@@ -80,11 +83,12 @@ def setup_logger(loglevel='info'):
     root_logger.addHandler(console_logger)
 
 
-def process_yaml(search_dir, enable_prereleases=False):
+def process_yaml(search_dir, vars=None, enable_prereleases=False):
     """iterate over directory and extract Helm chart name and version
 
     Keyword Arguments:
         search_dir {str} -- path to directory
+        vars {list} -- list with dicts with extra vars
         enable_prereleases {bool} -- process pre-releases (default: False)
     """
     search_dir = Path(search_dir)
@@ -100,17 +104,19 @@ def process_yaml(search_dir, enable_prereleases=False):
             continue
         try:
             get_ansible_helm(path=item.absolute(),
+                             vars=vars,
                              enable_prereleases=enable_prereleases)
         except Exception as e:
             logging.error("unexpected exception while parsing yaml "
                           f"'{item.absolute}'. {str(e)}")
 
 
-def get_ansible_helm(path, enable_prereleases=False):
+def get_ansible_helm(path, vars=None, enable_prereleases=False):
     """load ansible yamls and search for Helm chart name and version
 
     Keyword Arguments:
         path {str} -- path to yaml
+        vars {list} -- list with dicts with extra vars
         enable_prereleases {bool} -- process pre-releases (default: False)
     """
 
@@ -124,10 +130,15 @@ def get_ansible_helm(path, enable_prereleases=False):
     def _parse_ansible_helm_repository_task(item):
         for task_name in helm_repository_task_names:
             if item.get(task_name):
+                with_items = item.get('with_items')
+                if not isinstance(with_items , list):
+                    search = re.sub(r'[^\w]', '', with_items)
+                    with_items = vars.get(search)
+
                 _extract_ansible_helm_repository_task(
                     repo_name=item[task_name]['name'],
                     repo_url=item[task_name]['repo_url'],
-                    with_items=item['with_items'] if item.get('with_items') else None)
+                    with_items=with_items)
 
     def _extract_ansible_helm_task(chart_ref, chart_version):
         if not any(chart for chart in ansible_helm_charts if chart == chart_ref):
@@ -315,7 +326,18 @@ def main():
         sys.exit(1)
 
     try:
+        if env_vars.vars_file:
+            if not os.path.exists(env_vars.vars_file):
+                raise FileNotFoundError(f"vars file '{env_vars.vars_file}' not found")
+
+            with open(env_vars.vars_file) as stream:
+                vars = yaml.safe_load(stream)
+    except Exception as e:
+        logging.critical(f"unable to process extra vars yaml. {str(e)}")
+        sys.exit(1)
+    try:
         process_yaml(search_dir=env_vars.search_dir,
+                     vars=vars,
                      enable_prereleases=env_vars.enable_prereleases)
     except Exception as e:
         logging.critical(f"unable to process ansible yaml. {str(e)}")
