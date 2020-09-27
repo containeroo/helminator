@@ -1,3 +1,5 @@
+# Changelog
+
 ## [v1.6.0](https://github.com/containeroo/helminator/tree/v1.6.0) (2020-09-27)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v1.5.2...v1.6.0)
@@ -82,7 +84,7 @@
 
 **New features:**
 
- - Add optional `HELMINATOR_ENABLE_PRERELEASES` environment variable to enable or disable processing of pre-releases (#16)
+- Add optional `HELMINATOR_ENABLE_PRERELEASES` environment variable to enable or disable processing of pre-releases (#16)
 
 ## [v1.2.1](https://github.com/containeroo/helminator/tree/v1.2.1) (2020-06-24)
 
