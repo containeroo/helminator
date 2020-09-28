@@ -83,12 +83,12 @@ def setup_logger(loglevel='info'):
     root_logger.addHandler(console_logger)
 
 
-def process_yaml(search_dir, vars=None, enable_prereleases=False):
+def process_yaml(search_dir, additional_vars=None, enable_prereleases=False):
     """iterate over directory and extract Helm chart name and version
 
     Keyword Arguments:
         search_dir {str} -- path to directory
-        vars {list} -- list with dicts with extra vars
+        additional_vars {list} -- list with dicts with additional vars
         enable_prereleases {bool} -- process pre-releases (default: False)
     """
     search_dir = Path(search_dir)
@@ -104,14 +104,14 @@ def process_yaml(search_dir, vars=None, enable_prereleases=False):
             continue
         try:
             get_ansible_helm(path=item.absolute(),
-                             vars=vars,
+                             additional_vars=additional_vars,
                              enable_prereleases=enable_prereleases)
         except Exception as e:
             logging.error("unexpected exception while parsing yaml "
                           f"'{item.absolute}'. {str(e)}")
 
 
-def get_ansible_helm(path, vars=None, enable_prereleases=False):
+def get_ansible_helm(path, additional_vars=None, enable_prereleases=False):
     """load ansible yamls and search for Helm chart name and version
 
     Keyword Arguments:
@@ -131,9 +131,13 @@ def get_ansible_helm(path, vars=None, enable_prereleases=False):
         for task_name in helm_repository_task_names:
             if item.get(task_name):
                 with_items = item.get('with_items')
-                if not isinstance(with_items , list):
+
+                if additional_vars and isinstance(with_items , str):
                     search = re.sub(r'[^\w]', '', with_items)
-                    with_items = vars.get(search)
+                    with_items = additional_vars.get(search)
+
+                if not isinstance(with_items, list):
+                    with_items = None
 
                 _extract_ansible_helm_repository_task(
                     repo_name=item[task_name]['name'],
@@ -326,18 +330,20 @@ def main():
         sys.exit(1)
 
     try:
+        additional_vars = None
         if env_vars.vars_file:
             if not os.path.exists(env_vars.vars_file):
                 raise FileNotFoundError(f"vars file '{env_vars.vars_file}' not found")
 
             with open(env_vars.vars_file) as stream:
-                vars = yaml.safe_load(stream)
+                additional_vars = yaml.safe_load(stream)
     except Exception as e:
         logging.critical(f"unable to process extra vars yaml. {str(e)}")
         sys.exit(1)
+
     try:
         process_yaml(search_dir=env_vars.search_dir,
-                     vars=vars,
+                     additional_vars=additional_vars,
                      enable_prereleases=env_vars.enable_prereleases)
     except Exception as e:
         logging.critical(f"unable to process ansible yaml. {str(e)}")
