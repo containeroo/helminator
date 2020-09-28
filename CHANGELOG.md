@@ -1,5 +1,13 @@
 # Changelog
 
+## [v1.6.1](https://github.com/containeroo/helminator/tree/v1.6.1) (2020-09-28)
+
+[All Commits](https://github.com/containeroo/helminator/compare/v1.6.0...v1.6.1)
+
+**Bug fixes:**
+
+- Fix script crash when `HELMINATOR_VARS_FILE` is unset (#34)
+
 ## [v1.6.0](https://github.com/containeroo/helminator/tree/v1.6.0) (2020-09-27)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v1.5.2...v1.6.0)
