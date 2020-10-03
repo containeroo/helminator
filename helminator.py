@@ -7,7 +7,7 @@ import re
 from collections import namedtuple
 from pathlib import Path
 
-__version__ = "1.6.1"
+__version__ = "1.7.0"
 
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
