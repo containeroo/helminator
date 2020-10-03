@@ -2,7 +2,7 @@
 
 ## [v1.7.0](https://github.com/containeroo/helminator/tree/v1.7.0) (2020-10-03)
 
-[All Commits](https://github.com/containeroo/helminator/compare/v1.6.0...v1.6.1)
+[All Commits](https://github.com/containeroo/helminator/compare/v1.6.1...v1.7.0)
 
 **New features:**
 
