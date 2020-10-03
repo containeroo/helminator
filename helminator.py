@@ -200,6 +200,17 @@ def get_ansible_helm(path, additional_vars=None, enable_prereleases=False):
             logging.debug(f"found ansible helm_repository task '{repo_name}' with url '{repo_url}'")
             ansible_chart_repos.append(repo)
 
+    def _extract_element(key: str, item: dict):
+        for sub_item in item[key]:
+            if not isinstance(sub_item, dict):
+                continue
+            if sub_item.get('block'):
+                _extract_element(key='block', item=sub_item)
+            if sub_item.get('community.kubernetes.helm') or sub_item.get('helm'):
+                _parse_ansible_helm_task(item=sub_item)
+            if sub_item.get('community.kubernetes.helm_repository') or sub_item.get('helm_repository'):
+                _parse_ansible_helm_repository_task(item=sub_item)
+
     try:
         with open(path) as stream:
             tasks = yaml.safe_load(stream)
@@ -211,17 +222,9 @@ def get_ansible_helm(path, additional_vars=None, enable_prereleases=False):
         if not isinstance(task, dict):
             continue
         if task.get('pre_tasks'):
-            for pre_task in task['pre_tasks']:
-                if pre_task.get('community.kubernetes.helm') or pre_task.get('helm'):
-                    _parse_ansible_helm_task(item=pre_task)
-                if pre_task.get('community.kubernetes.helm_repository') or pre_task.get('helm_repository'):
-                    _parse_ansible_helm_repository_task(item=pre_task)
+            _extract_element(key='pre_tasks', item=task)
         if task.get('tasks'):
-            for _task in task['tasks']:
-                if _task.get('community.kubernetes.helm') or _task.get('helm'):
-                    _parse_ansible_helm_task(item=_task)
-                if _task.get('community.kubernetes.helm_repository') or _task.get('helm_repository'):
-                    _parse_ansible_helm_repository_task(item=_task)
+            _extract_element(key='tasks', item=task)
         if task.get('community.kubernetes.helm') or task.get('helm'):
             _parse_ansible_helm_task(item=task)
         if task.get('community.kubernetes.helm_repository') or task.get('helm_repository'):
