@@ -197,6 +197,10 @@ def get_ansible_helm(path, additional_vars=None, enable_prereleases=False):
                         f"url '{_item[item_repo_url]}'")
                     ansible_chart_repos.append(repo)
                 return
+
+            if pattern.match(repo_name):
+                return
+
             repo = {
                 'name': repo_name,
                 'url': repo_url.rstrip('/')
