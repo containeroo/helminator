@@ -7,7 +7,7 @@ import re
 from collections import namedtuple
 from pathlib import Path
 
-__version__ = "1.7.0"
+__version__ = "1.7.1"
 
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
@@ -75,11 +75,15 @@ def setup_logger(loglevel='info'):
         loglevel = logging.INFO
     elif loglevel == "debug":
         loglevel = logging.DEBUG
+    else:
+        loglevel = logging.INFO
 
     default_format = logging.Formatter("%(asctime)s [%(levelname)-7.7s] %(message)s")
+    debug_format = logging.Formatter("%(asctime)s [%(filename)s:%(lineno)s - %(funcName)-20s ] %(message)s")
+
     console_logger = logging.StreamHandler(sys.stdout)
     console_logger.setLevel(loglevel)
-    console_logger.setFormatter(default_format)
+    console_logger.setFormatter(debug_format if loglevel == logging.DEBUG else default_format)
     root_logger.addHandler(console_logger)
 
 
@@ -193,6 +197,10 @@ def get_ansible_helm(path, additional_vars=None, enable_prereleases=False):
                         f"url '{_item[item_repo_url]}'")
                     ansible_chart_repos.append(repo)
                 return
+
+            if pattern.match(repo_name):
+                return
+
             repo = {
                 'name': repo_name,
                 'url': repo_url.rstrip('/')

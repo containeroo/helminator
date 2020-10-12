@@ -1,5 +1,17 @@
 # Changelog
 
+## [v1.7.1](https://github.com/containeroo/helminator/tree/v1.7.1) (2020-10-07)
+
+[All Commits](https://github.com/containeroo/helminator/compare/v1.7.0...v1.7.1)
+
+**New features:**
+
+- If loglevel `debug` is set, log also filename, line number and function name
+
+**Bug fixes:**
+
+- Skip variables during extracting ansible helm repository tasks if not used with `with_items`
+
 ## [v1.7.0](https://github.com/containeroo/helminator/tree/v1.7.0) (2020-10-03)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v1.6.1...v1.7.0)
