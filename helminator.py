@@ -386,7 +386,7 @@ def get_assignee_ids(cli: gitlab.Gitlab, assignees: List[str]) -> List[int]:
     return assignee_ids
 
 
-def get_gitlab_project(cli: gitlab.Gitlab, project_id: int):
+def get_project(cli: gitlab.Gitlab, project_id: int):
     """get gitlab project as object
 
     Args:
@@ -415,17 +415,17 @@ def get_gitlab_project(cli: gitlab.Gitlab, project_id: int):
     return project
 
 
-def update_gitlab_project(gitlab_project: object,
-                          gitlab_file_path: str,
-                          repo_file_path: str,
-                          chart_name: str,
-                          old_version: str,
-                          new_version: str,
-                          assignee_ids: List[int] = []):
+def update_project(project: object,
+                   gitlab_file_path: str,
+                   repo_file_path: str,
+                   chart_name: str,
+                   old_version: str,
+                   new_version: str,
+                   assignee_ids: List[int] = []):
     """update file in gitlab project
 
     Args:
-        gitlab_project (gitlab.v4.objects.Project): gitlab project object
+        project (gitlab.v4.objects.Project): gitlab project object
         gitlab_file_path (str): path to file on gitlab
         repo_file_path (str): path to file inside repo
         chart_name (str): name of chart
@@ -434,13 +434,13 @@ def update_gitlab_project(gitlab_project: object,
         assignee_ids (List[int], optional): list of assignee id's to assign mr. Defaults to [].
 
     Raises:
-        TypeError: gitlab_project is not of type gitlab.v4.objects.Project
+        TypeError: project is not of type gitlab.v4.objects.Project
         Exception: branch could not be created
         Exception: merge request could not be created
         Exception: unable to upload new file content
     """
-    if not isinstance(gitlab_project, gitlab.v4.objects.Project):
-        raise TypeError(f"parameter 'gitlab_project' must be of type 'gitlab.v4.objects.Project', got '{type(gitlab_project)}'")
+    if not isinstance(project, gitlab.v4.objects.Project):
+        raise TypeError(f"parameter 'project' must be of type 'gitlab.v4.objects.Project', got '{type(project)}'")
 
     pattern = re.compile(f"chart_version: {old_version}")
     with open(file=str(repo_file_path), mode="r+") as f:
@@ -448,19 +448,29 @@ def update_gitlab_project(gitlab_project: object,
         new_content = re.sub(pattern, f"chart_version: {new_version}", old_content)
 
         branch_name = f"helminator/{chart_name}-{new_version}"
-        try:
-            create_branch(
-                project=gitlab_project,
-                branch_name=branch_name
-            )
-        except Exception as e:
-            raise Exception(f"unable to create branch. {str(e)}")
+        mergerequest_title = f"update chart {chart_name} to {new_version}"
 
         try:
-            mergerequest_title = f"update chart {chart_name} to {new_version}"
             description = f"{chart_name}: {new_version} -> {new_version}"
+
+            merge_request = check_merge_requests(project=project,
+                                                 chart_name=chart_name,
+                                                 new_version=new_version,
+                                                 description=description)
+
+            if merge_request.closed:
+                return
+
+            if merge_request.update:
+                project.branches.delete(mr.source_branch)
+
+            if merge_request.update or merge_request.missing:
+                create_branch(project=project,
+                              branch_name=branch_name)
+
+            if merge_request.missing:
             create_merge_request(
-                project=gitlab_project,
+                    project=project,
                 branch_name=branch_name,
                 description=description,
                 title=mergerequest_title,
@@ -470,11 +480,10 @@ def update_gitlab_project(gitlab_project: object,
             raise Exception(f"unable to create merge request. {str(e)}")
 
         try:
-            commit_msg = mergerequest_title
             update_file(
-                project=gitlab_project,
+                project=project,
                 branch_name=branch_name,
-                commit_msg=commit_msg,
+                commit_msg=mergerequest_title,
                 content=new_content,
                 path_to_file=gitlab_file_path,
             )
@@ -494,21 +503,65 @@ def create_branch(project: object,
     if not isinstance(project, gitlab.v4.objects.Project):
         raise TypeError("you must pass an 'gitlab.v4.objects.Project' object!")
 
-    try:
-        project.branches.get(branch_name)
-        logging.debug(f"branch '{branch_name}' already exists")
-        return
-    except gitlab.exceptions.GitlabGetError:
-        logging.debug(f"branch '{branch_name}' not found")
-    except:
-        raise
-
     project.branches.create(
         {
             'branch': branch_name,
             'ref': 'master',
         })
     logging.info(f"successfully created branch '{branch_name}'")
+
+
+def check_merge_requests(project: object,
+                         chart_name: str,
+                         new_version: str,
+                         description: str = None) -> namedtuple:
+    """[summary]
+
+    Args:
+        project (gitlab.v4.objects.Project): gitlab project object
+        chart_name (str): name of chart
+        new_version (str): new version of chart
+        description (str, optional): merge request description. Defaults to None.
+
+    Raises:
+        TypeError: project variable is not of type 'gitlab.v4.objects.Project'
+
+    Returns:
+        namedtuple: status of merge request
+    """
+    if not isinstance(project, gitlab.v4.objects.Project):
+        raise TypeError("you must pass an 'gitlab.v4.objects.Project' object!")
+
+    mrs = project.mergerequests.list(order_by='updated_at')
+    pattern = re.compile(f"^(update chart {chart_name} to )v?(\d.\d.\d).*")
+
+    title = f"update chart {chart_name} to {new_version}"
+
+    Status = namedtuple("Status", ["closed", "exists", "update", "missing"])
+    for mr in mrs:
+        if not pattern.match(mr.title):
+            continue
+
+        if mr.state == "closed" and mr.title == title:
+            logging.debug(f"merge request '{title}' was closed")
+            return Status(closed=True, exists=False, update=False, missing=False)
+
+        if mr.title == title:
+            logging.debug(f"merge request '{title}' already exists")
+            return Status(closed=False, exists=True, update=False, missing=False)
+
+        if mr.state == "closed":
+            continue
+
+        # update existing merge request
+        mr.title = title
+        if description:
+            mr.description = description
+        mr.save()
+
+        return Status(closed=False, exists=False, update=True, missing=False)
+
+    return Status(closed=False, exists=False, update=False, missing=True)
 
 
 def create_merge_request(project: object,
@@ -525,25 +578,22 @@ def create_merge_request(project: object,
         assignee_ids (list, optional): assign merge request to persons. Defaults to 'None'.
     Raises:
         TypeError: project variable is not of type 'gitlab.v4.objects.Project'
-        LookupError: merge request with same name already closed
         ValueError: 'assignee_ids' must be a list
+        LookupError: branch does not exist
     """
     if not isinstance(project, gitlab.v4.objects.Project):
         raise TypeError("you must pass an 'gitlab.v4.objects.Project' object!")
 
-    if assignee_ids and not isinstance(assignee_ids, list):
-        raise ValueError("assignee_ids must be a list")
+    if assignee_ids and not all(isinstance(a, int) for a in assignee_ids):
+        raise ValueError("assignee_ids must be a list of int")
 
-    mrs = project.mergerequests.list(order_by='updated_at')
-
-    for mr in mrs:
-        if mr.title != title:
-            continue
-        if mr.state == "closed":
-            logging.debug(f"merge request '{title}' was closed")
-            return
-        logging.debug(f"merge request '{title}' already exists")
-        return
+    try:
+        project.branches.get(branch_name)  # check if branch exists
+    except gitlab.exceptions.GitlabGetError:
+        raise LookupError(f"branch '{branch_name}' not found. to create a "
+                           "merge request, you need a branch!")
+    except:
+        raise
 
     mr = {
         'source_branch': branch_name,
@@ -676,7 +726,7 @@ def main():
                 raise ConnectionError(f"unable to get assignees. {str(e)}")
 
             try:
-                gitlab_project = get_gitlab_project(cli=cli,
+                project = get_project(cli=cli,
                                                     project_id=env_vars.project_id)
             except Exception as e:
                 raise ConnectionError(f"cannot get gitlab project. {str(e)}")
@@ -687,13 +737,13 @@ def main():
                 repo_file_path = str(chart['yaml_path'])
 
                 try:
-                    update_gitlab_project(gitlab_project=gitlab_project,
-                                          gitlab_file_path=gitlab_file_path,
-                                          repo_file_path=repo_file_path,
-                                          chart_name=chart['name'],
-                                          old_version=chart['old_version'],
-                                          new_version=chart['new_version'],
-                                          assignee_ids=assignee_ids)
+                    update_project(project=project,
+                                   gitlab_file_path=gitlab_file_path,
+                                   repo_file_path=repo_file_path,
+                                   chart_name=chart['name'],
+                                   old_version=chart['old_version'],
+                                   new_version=chart['new_version'],
+                                   assignee_ids=assignee_ids)
                 except Exception as e:
                     logging.error(f"cannot update repository. {e}")
         except Exception as e:
