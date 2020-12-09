@@ -1,5 +1,13 @@
 # Changelog
 
+## [v2.0.0](https://github.com/containeroo/helminator/tree/v2.0.0) (2020-12-09)
+
+[All Commits](https://github.com/containeroo/helminator/compare/v1.7.1...v2.0.0)
+
+**New features:**
+
+- can create pull request and merge request
+
 ## [v1.7.1](https://github.com/containeroo/helminator/tree/v1.7.1) (2020-10-12)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v1.7.0...v1.7.1)
