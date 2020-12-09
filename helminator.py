@@ -18,6 +18,14 @@ pattern = re.compile(r"^{{.*\.(\w+)  ?}}")
 helm_task_names = ['community.kubernetes.helm', 'helm']
 helm_repository_task_names = ['community.kubernetes.helm_repository', 'helm_repository']
 
+Templates = namedtuple("templates", ["branch_name", "merge_request_title", "description", "slack_notification"])
+templates = Templates(
+    "helminator/{CHART_NAME}-{NEW_VERSION}",
+    "update chart {CHART_NAME} to {NEW_VERSION}",
+    "| File | Chart | Change |\n| :-- | :-- | :-- |\n{FILE_PATH} | {CHART_NAME} | `{OLD_VERSION}` -> `{NEW_VERSION}`"
+    "{CHART_NAME}: `{OLD_VERSION}` -> `{NEW_VERSION}`"
+)
+
 try:
     import gitlab
     import requests
@@ -399,7 +407,7 @@ def get_project(cli: gitlab.Gitlab, project_id: int):
         ConnectionError: cannot get gitlab project
 
     Returns:
-        gitlab.v4.objects.Project: [description]
+        gitlab.v4.objects.Project: gitlab project object
     """
 
     if not isinstance(cli, gitlab.Gitlab):
@@ -447,11 +455,20 @@ def update_project(project: object,
         old_content = f.read()
         new_content = re.sub(pattern, f"chart_version: {new_version}", old_content)
 
-        branch_name = f"helminator/{chart_name}-{new_version}"
-        mergerequest_title = f"update chart {chart_name} to {new_version}"
+        branch_name = templates.branch_name.format(
+            CHART_NAME=chart_name,
+            NEW_VERSION=new_version)
+
+        mergerequest_title = templates.merge_request_title.format(
+                                CHART_NAME=chart_name,
+                                NEW_VERSION=new_version)
 
         try:
-            description = f"{chart_name}: {new_version} -> {new_version}"
+            description = templates.description.format(
+                                FILE_PATH=gitlab_file_path,
+                                CHART_NAME=chart_name,
+                                OLD_VERSION=old_version,
+                                NEW_VERSION=new_version)
 
             merge_request = check_merge_requests(project=project,
                                                  chart_name=chart_name,
@@ -469,13 +486,13 @@ def update_project(project: object,
                               branch_name=branch_name)
 
             if merge_request.missing:
-            create_merge_request(
-                    project=project,
-                branch_name=branch_name,
-                description=description,
-                title=mergerequest_title,
-                assignee_ids=assignee_ids
-            )
+                create_merge_request(
+                        project=project,
+                        branch_name=branch_name,
+                        description=description,
+                        title=mergerequest_title,
+                        assignee_ids=assignee_ids
+                )
         except Exception as e:
             raise Exception(f"unable to create merge request. {str(e)}")
 
@@ -535,7 +552,9 @@ def check_merge_requests(project: object,
     mrs = project.mergerequests.list(order_by='updated_at')
     pattern = re.compile(f"^(update chart {chart_name} to )v?(\d.\d.\d).*")
 
-    title = f"update chart {chart_name} to {new_version}"
+    title = templates.merge_request_title.format(
+                CHART_NAME=chart_name,
+                NEW_VERSION=new_version)
 
     Status = namedtuple("Status", ["closed", "exists", "update", "missing"])
     for mr in mrs:
@@ -751,11 +770,9 @@ def main():
 
     if env_vars.slack_token and chart_updates:
         text = [f"The following chart update{'s are' if len(chart_updates) > 1 else ' is'} available:"]
-        text.extend([f"{chart_update['name']}: `{chart_update['old_version']}` -> "
-                     f"`{chart_update['new_version']}`" for chart_update in chart_updates])
-
-        if env_vars.enable_mergerequests:
-            text.append("\n merge request created")
+        text.extend([templates.slack_notification.format(CHART_NAME=chart_update['name'],
+                                                         OLD_VERSION=chart['old_version'],
+                                                         NEW_VERSION=chart['new_version']) for chart_update in chart_updates])
         text = '\n'.join(text)
 
         try:
