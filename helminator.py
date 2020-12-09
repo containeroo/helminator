@@ -43,18 +43,18 @@ def check_env_vars():
     search_dir = os.environ.get("HELMINATOR_ROOT_DIR")
     vars_file = os.environ.get("HELMINATOR_VARS_FILE")
     enable_prereleases = os.environ.get("HELMINATOR_ENABLE_PRERELEASES", "false").lower() == "true"
+
     verify_ssl = os.environ.get("HELMINATOR_VERIFY_SSL", "false").lower() == "true"
     loglevel = os.environ.get("HELMINATOR_LOGLEVEL", "info").lower()
 
-    gitlab_token = os.environ.get("GITLAB_TOKEN")
     enable_mergerequests = os.environ.get("ENABLE_MERGEREQUESTS", "true").lower() == "true"
-
-    slack_channel = os.environ.get("HELMINATOR_SLACK_CHANNEL")
-    slack_token = os.environ.get("HELMINATOR_SLACK_API_TOKEN")
-
+    gitlab_token = os.environ.get("GITLAB_TOKEN")
     assignees = os.environ.get("ASSIGNEES")
     assignees = ([] if not assignees else
                  [a.strip() for a in assignees.split(",") if a])
+
+    slack_token = os.environ.get("HELMINATOR_SLACK_API_TOKEN")
+    slack_channel = os.environ.get("HELMINATOR_SLACK_CHANNEL")
 
     gitlab_url = os.environ.get("CI_SERVER_URL")
     project_id = os.environ.get("CI_PROJECT_ID")
@@ -67,39 +67,37 @@ def check_env_vars():
         raise EnvironmentError(
             "environment variable 'HELMINATOR_SLACK_CHANNEL' not set!")
 
-    if not enable_mergerequests:
-        if not gitlab_token:
-            raise EnvironmentError(
-                "environment variable 'GITLAB_TOKEN' not set!")
+    if enable_mergerequests and not gitlab_token:
+        raise EnvironmentError("environment variable 'GITLAB_TOKEN' not set!")
 
     Env_vars = namedtuple('Env_vars', ['search_dir',
+                                       'vars_file',
+                                       'enable_prereleases',
+                                       'verify_ssl',
+                                       'loglevel',
+                                       'enable_mergerequests',
+                                       'gitlab_token',
+                                       'assignees',
                                        'slack_token',
                                        'slack_channel',
-                                       'loglevel',
-                                       'enable_prereleases',
-                                       'vars_file',
-                                       'verify_ssl',
                                        'gitlab_url',
-                                       'gitlab_token',
                                        'project_id',
-                                       'assignees',
-                                       'enable_mergerequests',
                                        ]
     )
 
     return Env_vars(
         search_dir,
+        vars_file,
+        enable_prereleases,
+        verify_ssl,
+        loglevel,
+        enable_mergerequests
+        gitlab_token,
+        assignees,
         slack_token,
         slack_channel,
-        loglevel,
-        enable_prereleases,
-        vars_file,
-        verify_ssl,
         gitlab_url,
-        gitlab_token,
         int(project_id),
-        assignees,
-        enable_mergerequests
     )
 
 
@@ -766,6 +764,7 @@ def main():
                 except Exception as e:
                     logging.error(f"cannot update repository. {e}")
         except Exception as e:
+            errors = True
             logging.critical(f"unable to update gitlab. {str(e)}")
 
     if env_vars.slack_token and chart_updates:
