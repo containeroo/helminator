@@ -21,9 +21,9 @@ helm_repository_task_names = ['community.kubernetes.helm_repository', 'helm_repo
 Templates = namedtuple("templates", ["branch_name", "merge_request_title", "description", "slack_notification"])
 templates = Templates(
     "helminator/{CHART_NAME}-{NEW_VERSION}",
-    "update chart {CHART_NAME} to {NEW_VERSION}",
-    "| File | Chart | Change |\n| :-- | :-- | :-- |\n{FILE_PATH} | {CHART_NAME} | `{OLD_VERSION}` -> `{NEW_VERSION}`"
-    "{CHART_NAME}: `{OLD_VERSION}` -> `{NEW_VERSION}`"
+    "update {CHART_NAME} chart to {NEW_VERSION}",
+    "| File | Chart | Change |\n| :-- | :-- | :-- |\n{FILE_PATH} | {CHART_NAME} | `{OLD_VERSION}` -> `{NEW_VERSION}`",
+    "{CHART_NAME}: `{OLD_VERSION}` -> `{NEW_VERSION}`",
 )
 
 try:
@@ -40,7 +40,8 @@ except Exception:
 
 
 def check_env_vars():
-    search_dir = os.environ.get("HELMINATOR_ROOT_DIR")
+    ci_dir_project = os.environ.get("CI_PROJECT_DIR")
+    search_dir = os.environ.get("HELMINATOR_ROOT_DIR", ci_dir_project)
     vars_file = os.environ.get("HELMINATOR_VARS_FILE")
     enable_prereleases = os.environ.get("HELMINATOR_ENABLE_PRERELEASES", "false").lower() == "true"
 
@@ -91,7 +92,7 @@ def check_env_vars():
         enable_prereleases,
         verify_ssl,
         loglevel,
-        enable_mergerequests
+        enable_mergerequests,
         gitlab_token,
         assignees,
         slack_token,
@@ -402,7 +403,7 @@ def get_project(cli: gitlab.Gitlab, project_id: int):
     Raises:
         TypeError: cli is not of type gitlab.Gitlab
         gitlab.exceptions.GitlabGetError: project not found
-        ConnectionError: cannot get gitlab project
+        ConnectionError: cannot connect to gitlab project
 
     Returns:
         gitlab.v4.objects.Project: gitlab project object
@@ -461,35 +462,57 @@ def update_project(project: object,
                                 CHART_NAME=chart_name,
                                 NEW_VERSION=new_version)
 
+        description = templates.description.format(
+                            FILE_PATH=gitlab_file_path,
+                            CHART_NAME=chart_name,
+                            OLD_VERSION=old_version,
+                            NEW_VERSION=new_version)
         try:
-            description = templates.description.format(
-                                FILE_PATH=gitlab_file_path,
-                                CHART_NAME=chart_name,
-                                OLD_VERSION=old_version,
-                                NEW_VERSION=new_version)
-
             merge_request = check_merge_requests(project=project,
-                                                 chart_name=chart_name,
-                                                 new_version=new_version,
-                                                 description=description)
+                                                 title=mergerequest_title,
+                                                 chart_name=chart_name)
+        except Exception as e:
+            raise Exception(f"unable check existing merge requests. {str(e)}")
 
-            if merge_request.closed:
-                return
+        if merge_request.closed:
+            return
 
-            if merge_request.update:
-                project.branches.delete(mr.source_branch)
+        if merge_request.update:
+            current_branch = None
+            try:
+                mr = get_merge_request_by_name(project=project,
+                                               chart_name=chart_name)
+                if not mr:
+                    raise Exception("merge request not found!")
+                current_branch = mr.source_branch
+                mr.title = mergerequest_title
+                mr.description = description
+                mr.save()
+            except Exception as e:
+                raise Exception(f"cannot update merge request. {str(e)}")
 
+            try:
+                if current_branch:
+                    project.branches.delete(current_branch)
+            except Exception as e:
+                raise Exception(f"cannot delete branch '{current_branch}'. {str(e)}")
+
+        try:
             if merge_request.update or merge_request.missing:
                 create_branch(project=project,
                               branch_name=branch_name)
+        except Exception as e:
+            raise Exception(f"cannot create branch '{branch_name}'. {str(e)}")
 
+        try:
             if merge_request.missing:
                 create_merge_request(
                         project=project,
                         branch_name=branch_name,
                         description=description,
                         title=mergerequest_title,
-                        assignee_ids=assignee_ids
+                        assignee_ids=assignee_ids,
+                        labels=["helminator"]
                 )
         except Exception as e:
             raise Exception(f"unable to create merge request. {str(e)}")
@@ -506,12 +529,39 @@ def update_project(project: object,
             raise Exception(f"unable to upload file. {str(e)}")
 
 
+def get_merge_request_by_name(project: object,
+                              chart_name: str) -> object:
+    """get merge request by name
+
+    Args:
+        project (gitlab.v4.objects.Project): gitlab project object
+        chart_name (str): name of chart
+
+    Raises:
+        TypeError: project variable is not of type 'gitlab.v4.objects.Project'
+
+    Returns:
+        gitlab.v4.objects.ProjectMergeRequest: gitlab merge request object
+    """
+    if not isinstance(project, gitlab.v4.objects.Project):
+        raise TypeError("you must pass an 'gitlab.v4.objects.Project' object!")
+
+    mrs = project.mergerequests.list(order_by='updated_at',
+                                     state='opened')
+    pattern = re.compile(f"^(update chart {chart_name} to )v?(\d.\d.\d).*")
+    for mr in mrs:
+        if pattern.match(mr.title) and "helminator" in mr.labels:  # Todo: think again over checking for labels here
+            return mr
+
+    return None
+
+
 def create_branch(project: object,
-                  branch_name: str = 'master'):
+                  branch_name: str):
     """create a branch on gitlab
     Args:
         project (gitlab.v4.objects.Project): gitlab project object
-        branch_name (str, optional): [description]. Defaults to 'master'.
+        branch_name (str): name of branch
     Raises:
         TypeError: project variable is not of type 'gitlab.v4.objects.Project'
     """
@@ -527,16 +577,14 @@ def create_branch(project: object,
 
 
 def check_merge_requests(project: object,
-                         chart_name: str,
-                         new_version: str,
-                         description: str = None) -> namedtuple:
+                         title: str,
+                         chart_name: str) -> namedtuple:
     """[summary]
 
     Args:
         project (gitlab.v4.objects.Project): gitlab project object
+        title (str): title of merge request
         chart_name (str): name of chart
-        new_version (str): new version of chart
-        description (str, optional): merge request description. Defaults to None.
 
     Raises:
         TypeError: project variable is not of type 'gitlab.v4.objects.Project'
@@ -547,15 +595,14 @@ def check_merge_requests(project: object,
     if not isinstance(project, gitlab.v4.objects.Project):
         raise TypeError("you must pass an 'gitlab.v4.objects.Project' object!")
 
-    mrs = project.mergerequests.list(order_by='updated_at')
-    pattern = re.compile(f"^(update chart {chart_name} to )v?(\d.\d.\d).*")
-
-    title = templates.merge_request_title.format(
-                CHART_NAME=chart_name,
-                NEW_VERSION=new_version)
-
+    pattern = re.compile(f"^(update {chart_name} chart to )v?(\d.\d.\d).*")
     Status = namedtuple("Status", ["closed", "exists", "update", "missing"])
+
+    mrs = project.mergerequests.list(order_by='updated_at')
     for mr in mrs:
+        if "helminator" not in mr.labels:
+            continue
+
         if not pattern.match(mr.title):
             continue
 
@@ -570,12 +617,6 @@ def check_merge_requests(project: object,
         if mr.state == "closed":
             continue
 
-        # update existing merge request
-        mr.title = title
-        if description:
-            mr.description = description
-        mr.save()
-
         return Status(closed=False, exists=False, update=True, missing=False)
 
     return Status(closed=False, exists=False, update=False, missing=True)
@@ -583,16 +624,18 @@ def check_merge_requests(project: object,
 
 def create_merge_request(project: object,
                          title: str,
+                         branch_name: str,
                          description : str = None,
-                         branch_name: str = 'master',
-                         assignee_ids: list = []):
+                         assignee_ids: List[int] = [],
+                         labels: List[str] = []):
     """create merge request on a gitlab project
     Args:
         project (gitlab.v4.objects.Project): gitlab project object
         description (str, optional): description of merge request
         title (str): title of branch
         branch_name (str, optional): name of branch. Defaults to 'master'.
-        assignee_ids (list, optional): assign merge request to persons. Defaults to 'None'.
+        assignee_ids (List[int], optional): assign merge request to persons. Defaults to 'None'.
+        labels (List[str]): labels
     Raises:
         TypeError: project variable is not of type 'gitlab.v4.objects.Project'
         ValueError: 'assignee_ids' must be a list
@@ -620,6 +663,9 @@ def create_merge_request(project: object,
 
     if description:
         mr['description'] = description
+
+    if labels:
+        mr['labels'] = labels
 
     mr = project.mergerequests.create(mr)
     if assignee_ids:
