@@ -11,7 +11,7 @@
 ## Introduction
 
 Helminator scans your Ansible playbook for helm and helm_repository tasks.
-It then checks if there is an update to any of the defined Helm charts available and sends out a Slack notification.
+It then checks if there is an update to any of the defined Helm charts available. If configured, it creates a branch and merge request and can also sends out a Slack notification.
 Helminator is built to run in a CI environment (e.g. GitLab CI).
 
 ## Requirements
@@ -30,12 +30,14 @@ Helminator takes the following environment variables:
 
 | Variable                        | Description                                         | Example                                                |
 | :------------------------------ | :-------------------------------------------------- | :----------------------------------------------------- |
-| `HELMINATOR_ROOT_DIR`           | Directory to scan                                   | `/path/to/playbook`                                    |
+| `HELMINATOR_ROOT_DIR`           | Directory to scan                                   | `CI_PROJECT_DIR`                                       |
 | `HELMINATOR_ENABLE_PRERELEASES` | Enable pre-release processing (defaults to `false`) | `true` or `false`                                      |
+| `HELMINATOR_LOGLEVEL`           | Set loglevel (defaults to `info`)                   | one of `critical`, `error`, `warning`, `info`, `debug` |
+| `HELMINATOR_VARS_FILE`          | path to file with extra variables                   | `${CI_PROJECT_DIR}/vars/main.yml`                      |
+| `HELMINATOR_VERIFY_SSL`         | verify ssl certificate (defaults to `true`)         | `true` or `false`                                      |
 | `HELMINATOR_SLACK_API_TOKEN`    | Slack API Token                                     | `xorb-abc-def`                                         |
 | `HELMINATOR_SLACK_CHANNEL`      | Slack channel to send message to                    | `#kubernetes`                                          |
-| `HELMINATOR_LOGLEVEL`           | Set loglevel (defaults to `info`)                   | one of `critical`, `error`, `warning`, `info`, `debug` |
-| `HELMINATOR_VARS_FILE`          | path to file with extra variables                   | `/path/to/playbook/vars/main.yml`                      |
+| `GITLAB_TOKEN`                  | token for access                                    | `12345678`                                             |
 
 ### Slack App
 
