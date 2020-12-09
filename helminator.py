@@ -1,13 +1,16 @@
+import base64
 import logging
 import logging.handlers
 import os
-import sys
 import re
-
+import sys
 from collections import namedtuple
 from pathlib import Path
+from typing import List
 
-__version__ = "1.7.1"
+import urllib3
+
+__version__ = "2.0.0"
 
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
@@ -16,9 +19,11 @@ helm_task_names = ['community.kubernetes.helm', 'helm']
 helm_repository_task_names = ['community.kubernetes.helm_repository', 'helm_repository']
 
 try:
+    import gitlab
     import requests
     import semver
     import yaml
+    from requests import HTTPError
     from slack import WebClient
     from slack.errors import SlackApiError
 except Exception:
@@ -28,25 +33,36 @@ except Exception:
 
 def check_env_vars():
     search_dir = os.environ.get("HELMINATOR_ROOT_DIR")
-    slack_token = os.environ.get("HELMINATOR_SLACK_API_TOKEN")
-    slack_channel = os.environ.get("HELMINATOR_SLACK_CHANNEL")
+    vars_file = os.environ.get("HELMINATOR_VARS_FILE")
     enable_prereleases = os.environ.get("HELMINATOR_ENABLE_PRERELEASES", "false").lower() == "true"
-
+    verify_ssl = os.environ.get("HELMINATOR_VERIFY_SSL", "false").lower() == "true"
     loglevel = os.environ.get("HELMINATOR_LOGLEVEL", "info").lower()
 
-    vars_file = os.environ.get("HELMINATOR_VARS_FILE")
+    gitlab_token = os.environ.get("GITLAB_TOKEN")
+    enable_mergerequests = os.environ.get("ENABLE_MERGEREQUESTS", "true").lower() == "true"
+
+    slack_channel = os.environ.get("HELMINATOR_SLACK_CHANNEL")
+    slack_token = os.environ.get("HELMINATOR_SLACK_API_TOKEN")
+
+    assignees = os.environ.get("ASSIGNEES")
+    assignees = ([] if not assignees else
+                 [a.strip() for a in assignees.split(",") if a])
+
+    gitlab_url = os.environ.get("CI_SERVER_URL")
+    project_id = os.environ.get("CI_PROJECT_ID")
 
     if not search_dir:
         raise EnvironmentError(
             "environment variable 'HELMINATOR_ROOT_DIR' not set!")
 
-    if not slack_token:
-        raise EnvironmentError(
-            "environment variable 'HELMINATOR_SLACK_API_TOKEN' not set!")
-
-    if not slack_channel:
+    if slack_token and not slack_channel:
         raise EnvironmentError(
             "environment variable 'HELMINATOR_SLACK_CHANNEL' not set!")
+
+    if not enable_mergerequests:
+        if not gitlab_token:
+            raise EnvironmentError(
+                "environment variable 'GITLAB_TOKEN' not set!")
 
     Env_vars = namedtuple('Env_vars', ['search_dir',
                                        'slack_token',
@@ -54,13 +70,34 @@ def check_env_vars():
                                        'loglevel',
                                        'enable_prereleases',
                                        'vars_file',
+                                       'verify_ssl',
+                                       'gitlab_url',
+                                       'gitlab_token',
+                                       'project_id',
+                                       'assignees',
+                                       'enable_mergerequests',
                                        ]
-                          )
-    return Env_vars(search_dir, slack_token, slack_channel, loglevel, enable_prereleases, vars_file)
+    )
+
+    return Env_vars(
+        search_dir,
+        slack_token,
+        slack_channel,
+        loglevel,
+        enable_prereleases,
+        vars_file,
+        verify_ssl,
+        gitlab_url,
+        gitlab_token,
+        int(project_id),
+        assignees,
+        enable_mergerequests
+    )
 
 
 def setup_logger(loglevel='info'):
     logging.getLogger("urllib3").setLevel(logging.WARNING)
+    urllib3.disable_warnings()
 
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG)
@@ -167,7 +204,8 @@ def get_ansible_helm(path, additional_vars=None, enable_prereleases=False):
             chart = {
                 'name': chart_name,
                 'version': chart_version,
-                'repo': repo_name
+                'repo': repo_name,
+                'yaml_path': yaml_path
             }
             logging.debug(f"found ansible helm task '{repo_name}/{chart_name}' with version '{chart_version}'")
             ansible_helm_charts.append(chart)
@@ -226,6 +264,7 @@ def get_ansible_helm(path, additional_vars=None, enable_prereleases=False):
         # ignore unparsable yaml files, since ansible already does this
         return
 
+    yaml_path = path
     for task in tasks:
         if not isinstance(task, dict):
             continue
@@ -241,12 +280,13 @@ def get_ansible_helm(path, additional_vars=None, enable_prereleases=False):
             _parse_ansible_helm_repository_task(item=task)
 
 
-def get_chart_updates(enable_prereleases=False):
+def get_chart_updates(enable_prereleases=False, verify_ssl=True):
     """get Helm chart yaml from repo and compare chart name and version with ansible
     chart name and version
 
     Keyword Arguments:
          enable_prereleases {bool} -- process pre-releases (default: False)
+         verify_ssl {bool} -- check ssl certs (default: True)
     """
     global errors
     for ansible_chart_repo in ansible_chart_repos:
@@ -261,7 +301,7 @@ def get_chart_updates(enable_prereleases=False):
         logging.debug(f"processing helm repository '{ansible_chart_repo['url']}'")
         try:
             helm_chart_url = f"{ansible_chart_repo['url']}/index.yaml"
-            repo_response = requests.get(url=helm_chart_url)
+            repo_response = requests.get(url=helm_chart_url, verify=verify_ssl)
         except Exception as e:
             logging.error(f"unable to fetch helm repository '{helm_chart_url}'. {str(e)}")
             errors = True
@@ -281,43 +321,293 @@ def get_chart_updates(enable_prereleases=False):
 
         for repo_charts in repo_charts['entries'].items():
             chart_name = repo_charts[0]
-            if not any(chart for chart in ansible_helm_charts_matching if chart['name'] == chart_name):
+            for chart in ansible_helm_charts_matching:
+                if chart['name'] == chart_name:
+                    versions = []
+                    ansible_chart_version = [chart['version'] for chart in ansible_helm_charts_matching if
+                                            chart['name'] == chart_name]
+                    ansible_chart_version = ansible_chart_version[0]
+                    for repo_chart in repo_charts[1]:
+                        if not semver.VersionInfo.isvalid(repo_chart['version'].lstrip('v')):
+                            logging.warning(f"helm chart '{repo_chart['name']}' has an invalid "
+                                            f"version '{repo_chart['version']}'")
+                            continue
+                        version = semver.VersionInfo.parse(repo_chart['version'].lstrip('v'))
+                        if version.prerelease and not enable_prereleases:
+                            logging.debug(f"skipping version '{repo_chart['version']}' of helm chart '{repo_chart['name']}' "
+                                        f"because it is a pre-release")
+                            continue
+                        logging.debug(f"found version '{repo_chart['version']}' of "
+                                    f"helm chart '{repo_chart['name']}'")
+                        versions.extend([repo_chart['version']])
+
+                    clean_versions = [version.lstrip('v') for version in versions]
+                    latest_version = str(max(map(semver.VersionInfo.parse, clean_versions)))
+
+                    latest_version = [version for version in versions if latest_version in version]
+
+                    if semver.match(latest_version[0].lstrip('v'), f">{ansible_chart_version.lstrip('v')}"):
+                        repo_chart = {
+                            'name': chart_name,
+                            'old_version': ansible_chart_version,
+                            'new_version': latest_version[0],
+                            'yaml_path': chart['yaml_path']
+                        }
+                        chart_updates.append(repo_chart)
+                        logging.info(f"found update for helm chart '{repo_chart['name']}': "
+                                    f"'{ansible_chart_version}' to '{latest_version[0]}'")
+                        continue
+                    logging.debug(f"no update found for helm chart '{repo_charts[0]}'. "
+                                f"current version in ansible helm task is '{ansible_chart_version}'")
+
+
+def get_assignee_ids(cli: gitlab.Gitlab, assignees: List[str]) -> List[int]:
+    """search assignees with name and get their id
+
+    Args:
+        cli (gitlab.Gitlab): gitlab.Gitlab object
+        assignees (List[str]): list of assignees with their names
+
+    Returns:
+        List[int]: list of assignees with their id's
+    """
+
+    assignee_ids = []
+    for assignee in assignees:
+        try:
+            assignee = cli.users.list(search=assignee)
+            if not assignee:
+                logging.warning("id of '{assignee}' not found")
                 continue
-            versions = []
-            ansible_chart_version = [chart['version'] for chart in ansible_helm_charts_matching if
-                                     chart['name'] == chart_name]
-            ansible_chart_version = ansible_chart_version[0]
-            for repo_chart in repo_charts[1]:
-                if not semver.VersionInfo.isvalid(repo_chart['version'].lstrip('v')):
-                    logging.warning(f"helm chart '{repo_chart['name']}' has an invalid "
-                                    f"version '{repo_chart['version']}'")
-                    continue
-                version = semver.VersionInfo.parse(repo_chart['version'].lstrip('v'))
-                if version.prerelease and not enable_prereleases:
-                    logging.debug(f"skipping version '{repo_chart['version']}' of helm chart '{repo_chart['name']}' "
-                                  f"because it is a pre-release")
-                    continue
-                logging.debug(f"found version '{repo_chart['version']}' of "
-                              f"helm chart '{repo_chart['name']}'")
-                versions.extend([repo_chart['version']])
+            assignee_ids.append(assignee[0].id)
+        except Exception as e:
+            logging.error(f"cannot get id of assignee '{assignee}'. {e}")
 
-            clean_versions = [version.lstrip('v') for version in versions]
-            latest_version = str(max(map(semver.VersionInfo.parse, clean_versions)))
+    return assignee_ids
 
-            latest_version = [version for version in versions if latest_version in version]
 
-            if semver.match(latest_version[0].lstrip('v'), f">{ansible_chart_version.lstrip('v')}"):
-                repo_chart = {
-                    'name': chart_name,
-                    'old_version': ansible_chart_version,
-                    'new_version': latest_version[0]
-                }
-                chart_updates.append(repo_chart)
-                logging.info(f"found update for helm chart '{repo_chart['name']}': "
-                             f"'{ansible_chart_version}' to '{latest_version[0]}'")
-                continue
-            logging.debug(f"no update found for helm chart '{repo_charts[0]}'. "
-                          f"current version in ansible helm task is '{ansible_chart_version}'")
+def get_gitlab_project(cli: gitlab.Gitlab, project_id: int):
+    """get gitlab project as object
+
+    Args:
+        cli (gitlab.Gitlab): gitlab.Gitlab object
+        project_id (int): project id
+
+    Raises:
+        TypeError: cli is not of type gitlab.Gitlab
+        gitlab.exceptions.GitlabGetError: project not found
+        ConnectionError: cannot get gitlab project
+
+    Returns:
+        gitlab.v4.objects.Project: [description]
+    """
+
+    if not isinstance(cli, gitlab.Gitlab):
+        raise TypeError(f"parameter 'cli' must be of type 'gitlab.Gitlab', got '{type(cli)}'")
+
+    try:
+        project = cli.projects.get(project_id)
+    except gitlab.exceptions.GitlabGetError as e:
+        raise gitlab.exceptions.GitlabGetError(f"project '{project_id}' not found. {e}")
+    except Exception as e:
+        raise ConnectionError(f"unable to connect to gitlab. {str(e)}")
+
+    return project
+
+
+def update_gitlab_project(gitlab_project: object,
+                          gitlab_file_path: str,
+                          repo_file_path: str,
+                          chart_name: str,
+                          old_version: str,
+                          new_version: str,
+                          assignee_ids: List[int] = []):
+    """update file in gitlab project
+
+    Args:
+        gitlab_project (gitlab.v4.objects.Project): gitlab project object
+        gitlab_file_path (str): path to file on gitlab
+        repo_file_path (str): path to file inside repo
+        chart_name (str): name of chart
+        old_version (str): current version of chart
+        new_version (str): new version of chart
+        assignee_ids (List[int], optional): list of assignee id's to assign mr. Defaults to [].
+
+    Raises:
+        TypeError: gitlab_project is not of type gitlab.v4.objects.Project
+        Exception: branch could not be created
+        Exception: merge request could not be created
+        Exception: unable to upload new file content
+    """
+    if not isinstance(gitlab_project, gitlab.v4.objects.Project):
+        raise TypeError(f"parameter 'gitlab_project' must be of type 'gitlab.v4.objects.Project', got '{type(gitlab_project)}'")
+
+    pattern = re.compile(f"chart_version: {old_version}")
+    with open(file=str(repo_file_path), mode="r+") as f:
+        old_content = f.read()
+        new_content = re.sub(pattern, f"chart_version: {new_version}", old_content)
+
+        branch_name = f"helminator/{chart_name}-{new_version}"
+        try:
+            create_branch(
+                project=gitlab_project,
+                branch_name=branch_name
+            )
+        except Exception as e:
+            raise Exception(f"unable to create branch. {str(e)}")
+
+        try:
+            mergerequest_title = f"update chart {chart_name} to {new_version}"
+            description = f"{chart_name}: {new_version} -> {new_version}"
+            create_merge_request(
+                project=gitlab_project,
+                branch_name=branch_name,
+                description=description,
+                title=mergerequest_title,
+                assignee_ids=assignee_ids
+            )
+        except Exception as e:
+            raise Exception(f"unable to create merge request. {str(e)}")
+
+        try:
+            commit_msg = mergerequest_title
+            update_file(
+                project=gitlab_project,
+                branch_name=branch_name,
+                commit_msg=commit_msg,
+                content=new_content,
+                path_to_file=gitlab_file_path,
+            )
+        except Exception as e:
+            raise Exception(f"unable to upload file. {str(e)}")
+
+
+def create_branch(project: object,
+                  branch_name: str = 'master'):
+    """create a branch on gitlab
+    Args:
+        project (gitlab.v4.objects.Project): gitlab project object
+        branch_name (str, optional): [description]. Defaults to 'master'.
+    Raises:
+        TypeError: project variable is not of type 'gitlab.v4.objects.Project'
+    """
+    if not isinstance(project, gitlab.v4.objects.Project):
+        raise TypeError("you must pass an 'gitlab.v4.objects.Project' object!")
+
+    try:
+        project.branches.get(branch_name)
+        logging.debug(f"branch '{branch_name}' already exists")
+        return
+    except gitlab.exceptions.GitlabGetError:
+        logging.debug(f"branch '{branch_name}' not found")
+    except:
+        raise
+
+    project.branches.create(
+        {
+            'branch': branch_name,
+            'ref': 'master',
+        })
+    logging.info(f"successfully created branch '{branch_name}'")
+
+
+def create_merge_request(project: object,
+                         title: str,
+                         description : str = None,
+                         branch_name: str = 'master',
+                         assignee_ids: list = []):
+    """create merge request on a gitlab project
+    Args:
+        project (gitlab.v4.objects.Project): gitlab project object
+        description (str, optional): description of merge request
+        title (str): title of branch
+        branch_name (str, optional): name of branch. Defaults to 'master'.
+        assignee_ids (list, optional): assign merge request to persons. Defaults to 'None'.
+    Raises:
+        TypeError: project variable is not of type 'gitlab.v4.objects.Project'
+        LookupError: merge request with same name already closed
+        ValueError: 'assignee_ids' must be a list
+    """
+    if not isinstance(project, gitlab.v4.objects.Project):
+        raise TypeError("you must pass an 'gitlab.v4.objects.Project' object!")
+
+    if assignee_ids and not isinstance(assignee_ids, list):
+        raise ValueError("assignee_ids must be a list")
+
+    mrs = project.mergerequests.list(order_by='updated_at')
+
+    for mr in mrs:
+        if mr.title != title:
+            continue
+        if mr.state == "closed":
+            logging.debug(f"merge request '{title}' was closed")
+            return
+        logging.debug(f"merge request '{title}' already exists")
+        return
+
+    mr = {
+        'source_branch': branch_name,
+        'target_branch': 'master',
+        'title': title,
+    }
+
+    if description:
+        mr['description'] = description
+
+    mr = project.mergerequests.create(mr)
+    if assignee_ids:
+        mr.todo()
+        mr.assignee_ids = assignee_ids
+        mr.save()
+
+    logging.info(f"successfully created merge request '{title}'")
+
+
+def update_file(project: object,
+                commit_msg: str,
+                content: str,
+                path_to_file: str,
+                branch_name: str = 'master'):
+    """update file on a gitlab project
+    Args:
+        project (gitlab.v4.objects.Project): gitlab project object
+        commit_msg (str): commit message
+        content (str): file content as string
+        path_to_file (str): path to file on the gitlab project
+        branch_name (str, optional): [description]. Defaults to 'master'.
+    Raises:
+        TypeError: project variable is not a type 'gitlab.v4.objects.Project'
+    """
+    if not isinstance(project, gitlab.v4.objects.Project):
+        raise TypeError("you must pass an 'gitlab.v4.objects.Project' object!")
+
+    commited_file = project.files.get(
+        file_path=path_to_file,
+        ref=branch_name)
+
+    base64_message = commited_file.content
+    base64_bytes = base64_message.encode('ascii')
+    message_bytes = base64.b64decode(base64_bytes)
+    commit_conntent = message_bytes.decode('ascii')
+
+    if content == commit_conntent:
+        logging.debug("current commit is up to date")
+        return
+
+    payload = {
+        "branch": branch_name,
+        "commit_message": commit_msg,
+        "actions": [
+            {
+                'action': 'update',
+                'file_path': path_to_file,
+                'content': content,
+            }
+        ]
+    }
+
+    project.commits.create(payload)
+    logging.info(f"successfully update file '{path_to_file}'")
 
 
 def send_slack(msg, slack_token, slack_channel):
@@ -363,15 +653,59 @@ def main():
         sys.exit(1)
 
     try:
-        get_chart_updates(enable_prereleases=env_vars.enable_prereleases)
+        get_chart_updates(enable_prereleases=env_vars.enable_prereleases,
+                          verify_ssl=env_vars.verify_ssl)
     except Exception as e:
         logging.critical(f"unable to process charts. {str(e)}")
         sys.exit(1)
 
-    if chart_updates:
+    if env_vars.enable_mergerequests:
+        try:
+            try:
+                cli = gitlab.Gitlab(url=env_vars.gitlab_url,
+                                    private_token=env_vars.gitlab_token,
+                                    ssl_verify=env_vars.verify_ssl)
+            except Exception as e:
+                raise ConnectionError(f"unable to connect to gitlab. {str(e)}")
+
+            try:
+                if env_vars.assignees:
+                    assignee_ids = get_assignee_ids(cli=cli,
+                                                    assignees=env_vars.assignees)
+            except:
+                raise ConnectionError(f"unable to get assignees. {str(e)}")
+
+            try:
+                gitlab_project = get_gitlab_project(cli=cli,
+                                                    project_id=env_vars.project_id)
+            except Exception as e:
+                raise ConnectionError(f"cannot get gitlab project. {str(e)}")
+
+            len_base = len(env_vars.search_dir) + 1
+            for chart in chart_updates:
+                gitlab_file_path = str(chart['yaml_path'])[len_base:]
+                repo_file_path = str(chart['yaml_path'])
+
+                try:
+                    update_gitlab_project(gitlab_project=gitlab_project,
+                                          gitlab_file_path=gitlab_file_path,
+                                          repo_file_path=repo_file_path,
+                                          chart_name=chart['name'],
+                                          old_version=chart['old_version'],
+                                          new_version=chart['new_version'],
+                                          assignee_ids=assignee_ids)
+                except Exception as e:
+                    logging.error(f"cannot update repository. {e}")
+        except Exception as e:
+            logging.critical(f"unable to update gitlab. {str(e)}")
+
+    if env_vars.slack_token and chart_updates:
         text = [f"The following chart update{'s are' if len(chart_updates) > 1 else ' is'} available:"]
         text.extend([f"{chart_update['name']}: `{chart_update['old_version']}` -> "
                      f"`{chart_update['new_version']}`" for chart_update in chart_updates])
+
+        if env_vars.enable_mergerequests:
+            text.append("\n merge request created")
         text = '\n'.join(text)
 
         try:
