@@ -488,8 +488,8 @@ def update_project(project: object,
         if merge_request.exists:
             return
 
-        current_branch = None
         if merge_request.update:
+            current_branch = None
             try:
                 mr = get_merge_request_by_name(project=project,
                                                chart_name=chart_name)
