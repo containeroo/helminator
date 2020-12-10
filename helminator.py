@@ -17,8 +17,8 @@ errors = False
 
 Pattern = namedtuple("Pattern", ["with_items", "mr_title",])
 pattern = Pattern(
-    re.compile(r"^{{.*\.(\w+) }}"),  # with_items
-    r"^(Update {CHART_NAME} chart to )v?(\d+.\d+.\d+).*",  # mr_title
+    with_items=re.compile(r"^{{.*\.(\w+) }}"),
+    mr_title=r"^(Update {CHART_NAME} chart to )v?(\d+.\d+.\d+).*",
 )
 
 helm_task_names = ['community.kubernetes.helm', 'helm']
@@ -26,11 +26,11 @@ helm_repository_task_names = ['community.kubernetes.helm_repository', 'helm_repo
 
 Templates = namedtuple("templates", ["branch_name", "merge_request_title", "description", "chart_version", "slack_notification",])
 templates = Templates(
-    "helminator/{CHART_NAME}",  # branche_name
-    "Update {CHART_NAME} chart to {NEW_VERSION}",  # merge_request_title
-    "| File | Chart | Change |\n| :-- | :-- | :-- |\n{FILE_PATH} | {CHART_NAME} | `{OLD_VERSION}` -> `{NEW_VERSION}`",  # description
-    "chart_version: {VERSION}",  # chart_version
-    "{LINK}{CHART_NAME}: `{OLD_VERSION}` -&gt; `{NEW_VERSION}`",  # slack_notification
+    branch_name="helminator/{CHART_NAME}",
+    merge_request_title="Update {CHART_NAME} chart to {NEW_VERSION}",
+    description="| File | Chart | Change |\n| :-- | :-- | :-- |\n{FILE_PATH} | {CHART_NAME} | `{OLD_VERSION}` -> `{NEW_VERSION}`",
+    chart_version="chart_version: {VERSION}",
+    slack_notification="{LINK}{CHART_NAME}: `{OLD_VERSION}` -&gt; `{NEW_VERSION}`",
 )
 
 try:
@@ -98,20 +98,20 @@ def check_env_vars():
     )
 
     return Env_vars(
-        search_dir,
-        vars_file,
-        enable_prereleases,
-        verify_ssl,
-        loglevel,
-        enable_mergerequests,
-        gitlab_token,
-        remove_source_branch,
-        squash,
-        assignees,
-        slack_token,
-        slack_channel,
-        gitlab_url,
-        int(project_id),
+        search_dir=search_dir,
+        vars_file=vars_file,
+        enable_prereleases=enable_prereleases,
+        verify_ssl=verify_ssl,
+        loglevel=loglevel,
+        enable_mergerequests=enable_mergerequests,
+        gitlab_token=gitlab_token,
+        remove_source_branch=remove_source_branch,
+        squash=squash,
+        assignees=assignees,
+        slack_token=slack_token,
+        slack_channel=slack_channel,
+        gitlab_url=gitlab_url,
+        project_id=int(project_id),
     )
 
 
