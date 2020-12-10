@@ -14,7 +14,10 @@ __version__ = "2.0.0"
 
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
-pattern = re.compile(r"^{{.*\.(\w+)  ?}}")
+Pattern = namedtuple("Pattern", ["with_items"])
+pattern = Pattern(
+    re.compile(r"^{{.*\.(\w+)  ?}}")
+)
 helm_task_names = ['community.kubernetes.helm', 'helm']
 helm_repository_task_names = ['community.kubernetes.helm_repository', 'helm_repository']
 
@@ -220,13 +223,13 @@ def get_ansible_helm(path, additional_vars=None, enable_prereleases=False):
     def _extract_ansible_helm_repository_task(repo_name, repo_url, with_items):
         if not any(repo for repo in ansible_chart_repos if repo['name'] == repo_name):
             if with_items:
-                item_repo_name = re.findall(pattern, repo_name)
+                item_repo_name = re.findall(pattern.with_items, repo_name)
                 if not item_repo_name:
                     logging.warning(f"could not find ansible helm_repository name in '{repo_name}'")
                     return
                 item_repo_name = item_repo_name[0]
 
-                item_repo_url = re.findall(pattern, repo_url)
+                item_repo_url = re.findall(pattern.with_items, repo_url)
                 if not item_repo_url:
                     logging.warning(f"could not find ansible helm_repository url in '{repo_url}'")
                     return
@@ -243,7 +246,7 @@ def get_ansible_helm(path, additional_vars=None, enable_prereleases=False):
                     ansible_chart_repos.append(repo)
                 return
 
-            if pattern.match(repo_name):
+            if pattern.with_items.match(repo_name):
                 return
 
             repo = {
