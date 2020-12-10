@@ -504,7 +504,7 @@ def update_project(project: object,
                 raise Exception(f"cannot update merge request. {str(e)}")
 
             try:
-                    project.branches.delete(current_branch)
+                project.branches.delete(current_branch)
             except Exception as e:
                 raise Exception(f"cannot delete branch '{current_branch}'. {str(e)}")
 
