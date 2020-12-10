@@ -11,7 +11,7 @@
 ## Introduction
 
 Helminator scans your Ansible playbook for helm and helm_repository tasks.
-It then checks if there is an update to any of the defined Helm charts available. If configured, it creates a branch and merge request and can also sends out a Slack notification.
+It then checks if there is an update to any of the defined Helm charts available. If configured, it creates a branch and merge request and/or send out a Slack notification.
 Helminator is built to run in a CI environment (e.g. GitLab CI).
 
 ## Requirements
