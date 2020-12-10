@@ -35,6 +35,8 @@ templates = Templates(
 
 try:
     import gitlab
+    from gitlab.v4.objects import Project, ProjectMergeRequest, ProjectBranch, ProjectCommit
+    import gitlab.cli as gitlab_cli
     import requests
     import semver
     import yaml
@@ -68,6 +70,10 @@ def check_env_vars():
 
     gitlab_url = os.environ.get("CI_SERVER_URL")
     project_id = os.environ.get("CI_PROJECT_ID")
+
+    if not project_id:
+        raise EnvironmentError("environment variable 'CI_PROJECT_ID' not set!")
+
     if not str(project_id).isdigit():
         raise EnvironmentError("environment variable 'CI_PROJECT_ID' must be int!")
 
@@ -382,16 +388,21 @@ def get_chart_updates(enable_prereleases=False, verify_ssl=True):
                             f"current version in ansible helm task is '{ansible_chart_version}'")
 
 
-def get_assignee_ids(cli: gitlab.Gitlab, assignees: List[str]) -> List[int]:
+def get_assignee_ids(cli: gitlab_cli, assignees: List[str]) -> List[int]:
     """search assignees with name and get their id
 
     Args:
-        cli (gitlab.Gitlab): gitlab.Gitlab object
+        cli (gitlab.Gitlab.cli): gitlab.Gitlab.cli object
         assignees (List[str]): list of assignees with their names
+
+    Raises:
+        TypeError: cli is not of type gitlab.Gitlab.cli
 
     Returns:
         List[int]: list of assignees with their id's
     """
+    if not isinstance(cli, gitlab_cli):
+        raise TypeError(f"parameter 'cli' must be of type 'gitlab.Gitlab.cli', got '{type(cli)}'")
 
     assignee_ids = []
     for assignee in assignees:
@@ -407,15 +418,15 @@ def get_assignee_ids(cli: gitlab.Gitlab, assignees: List[str]) -> List[int]:
     return assignee_ids
 
 
-def get_project(cli: gitlab.Gitlab, project_id: int):
+def get_project(cli: gitlab_cli, project_id: int) -> Project:
     """get gitlab project as object
 
     Args:
-        cli (gitlab.Gitlab): gitlab.Gitlab object
+        cli (gitlab.Gitlab.cli): gitlab.Gitlab.cli object
         project_id (int): project id
 
     Raises:
-        TypeError: cli is not of type gitlab.Gitlab
+        TypeError: cli is not of type gitlab.Gitlab.cli
         gitlab.exceptions.GitlabGetError: project not found
         ConnectionError: cannot connect to gitlab project
 
@@ -423,8 +434,8 @@ def get_project(cli: gitlab.Gitlab, project_id: int):
         gitlab.v4.objects.Project: gitlab project object
     """
 
-    if not isinstance(cli, gitlab.Gitlab):
-        raise TypeError(f"parameter 'cli' must be of type 'gitlab.Gitlab', got '{type(cli)}'")
+    if not isinstance(cli, gitlab_cli):
+        raise TypeError(f"parameter 'cli' must be of type 'gitlab.Gitlab.cli', got '{type(cli)}'")
 
     try:
         project = cli.projects.get(project_id)
@@ -436,7 +447,7 @@ def get_project(cli: gitlab.Gitlab, project_id: int):
     return project
 
 
-def update_project(project: object,
+def update_project(project: Project,
                    gitlab_file_path: str,
                    repo_file_path: str,
                    chart_name: str,
@@ -444,7 +455,7 @@ def update_project(project: object,
                    new_version: str,
                    remove_source_branch: bool = False,
                    squash: bool = False,
-                   assignee_ids: List[int] = []) -> object:
+                   assignee_ids: List[int] = []) -> ProjectMergeRequest:
     """update file in gitlab project
 
     Args:
@@ -554,8 +565,8 @@ def update_project(project: object,
     return mr
 
 
-def get_merge_request_by_name(project: object,
-                              chart_name: str) -> object:
+def get_merge_request_by_name(project: Project,
+                              chart_name: str) -> ProjectMergeRequest:
     """get merge request by name
 
     Args:
@@ -582,8 +593,8 @@ def get_merge_request_by_name(project: object,
     return None
 
 
-def create_branch(project: object,
-                  branch_name: str) -> object:
+def create_branch(project: Project,
+                  branch_name: str) -> ProjectBranch:
     """create a branch on gitlab
     Args:
         project (gitlab.v4.objects.Project): gitlab project object
@@ -609,7 +620,7 @@ def create_branch(project: object,
     return branch
 
 
-def check_merge_requests(project: object,
+def check_merge_requests(project: Project,
                          title: str,
                          chart_name: str) -> namedtuple:
     """check if a merge request already exists
@@ -656,14 +667,14 @@ def check_merge_requests(project: object,
     return Status(closed=False, exists=False, update=False, missing=True)
 
 
-def create_merge_request(project: object,
+def create_merge_request(project: Project,
                          title: str,
                          branch_name: str,
                          description: str = None,
                          remove_source_branch: bool = False,
                          squash: bool = False,
                          assignee_ids: List[int] = [],
-                         labels: List[str] = []) -> object:
+                         labels: List[str] = []) -> ProjectMergeRequest:
     """create merge request on a gitlab project
     Args:
         project (gitlab.v4.objects.Project): gitlab project object
@@ -725,11 +736,11 @@ def create_merge_request(project: object,
     return mr
 
 
-def update_file(project: object,
+def update_file(project: Project,
                 commit_msg: str,
                 content: str,
                 path_to_file: str,
-                branch_name: str = 'master'):
+                branch_name: str = 'master') -> ProjectCommit:
     """update file on a gitlab project
     Args:
         project (gitlab.v4.objects.Project): gitlab project object
@@ -767,8 +778,10 @@ def update_file(project: object,
         ]
     }
 
-    project.commits.create(payload)
+    commit = project.commits.create(payload)
     logging.info(f"successfully update file '{path_to_file}'")
+
+    return commit
 
 
 def send_slack(msg, slack_token, slack_channel):
