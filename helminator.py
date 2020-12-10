@@ -36,7 +36,7 @@ templates = Templates(
 try:
     import gitlab
     from gitlab.v4.objects import Project, ProjectMergeRequest, ProjectBranch, ProjectCommit
-    import gitlab.cli as gitlab_cli
+    from gitlab import Gitlab as Gitlab_cli
     import requests
     import semver
     import yaml
@@ -388,11 +388,11 @@ def get_chart_updates(enable_prereleases=False, verify_ssl=True):
                             f"current version in ansible helm task is '{ansible_chart_version}'")
 
 
-def get_assignee_ids(cli: gitlab_cli, assignees: List[str]) -> List[int]:
+def get_assignee_ids(cli: Gitlab_cli, assignees: List[str]) -> List[int]:
     """search assignees with name and get their id
 
     Args:
-        cli (gitlab.Gitlab.cli): gitlab.Gitlab.cli object
+        cli (gitlab.Gitlab): gitlab cli object
         assignees (List[str]): list of assignees with their names
 
     Raises:
@@ -401,7 +401,7 @@ def get_assignee_ids(cli: gitlab_cli, assignees: List[str]) -> List[int]:
     Returns:
         List[int]: list of assignees with their id's
     """
-    if not isinstance(cli, gitlab_cli):
+    if not isinstance(cli, Gitlab_cli):
         raise TypeError(f"parameter 'cli' must be of type 'gitlab.Gitlab.cli', got '{type(cli)}'")
 
     assignee_ids = []
@@ -418,11 +418,11 @@ def get_assignee_ids(cli: gitlab_cli, assignees: List[str]) -> List[int]:
     return assignee_ids
 
 
-def get_project(cli: gitlab_cli, project_id: int) -> Project:
+def get_project(cli: Gitlab_cli, project_id: int) -> Project:
     """get gitlab project as object
 
     Args:
-        cli (gitlab.Gitlab.cli): gitlab.Gitlab.cli object
+        cli (gitlab.Gitlab): gitlab cli object
         project_id (int): project id
 
     Raises:
@@ -434,7 +434,7 @@ def get_project(cli: gitlab_cli, project_id: int) -> Project:
         gitlab.v4.objects.Project: gitlab project object
     """
 
-    if not isinstance(cli, gitlab_cli):
+    if not isinstance(cli, Gitlab_cli):
         raise TypeError(f"parameter 'cli' must be of type 'gitlab.Gitlab.cli', got '{type(cli)}'")
 
     try:
@@ -847,7 +847,7 @@ def main():
                 if env_vars.assignees:
                     assignee_ids = get_assignee_ids(cli=cli,
                                                     assignees=env_vars.assignees)
-            except:
+            except Exception as e:
                 raise ConnectionError(f"unable to get assignees. {str(e)}")
 
             try:
@@ -856,8 +856,7 @@ def main():
             except Exception as e:
                 raise ConnectionError(f"cannot get gitlab project. {str(e)}")
 
-            search_dir = Path(search_dir)
-            len_base = len(search_dir) + 1
+            len_base = len(env_vars.search_dir) + 1
             for chart in chart_updates:
                 gitlab_file_path = str(chart['yaml_path'])[len_base:]
                 repo_file_path = str(chart['yaml_path'])
