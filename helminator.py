@@ -14,17 +14,21 @@ __version__ = "2.0.0"
 
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
-Pattern = namedtuple("Pattern", ["with_items"])
+
+Pattern = namedtuple("Pattern", ["with_items", "mr_title", "chart_version"])
 pattern = Pattern(
-    re.compile(r"^{{.*\.(\w+) }}")
+    re.compile(r"^{{.*\.(\w+) }}"),
+    r"^(Update chart {CHART_NAME} to )v?(\d.\d.\d).*",
+    "chart_version: {OLD_VERSION}"
 )
+
 helm_task_names = ['community.kubernetes.helm', 'helm']
 helm_repository_task_names = ['community.kubernetes.helm_repository', 'helm_repository']
 
 Templates = namedtuple("templates", ["branch_name", "merge_request_title", "description", "slack_notification"])
 templates = Templates(
     "helminator/{CHART_NAME}-{NEW_VERSION}",
-    "update {CHART_NAME} chart to {NEW_VERSION}",
+    "Update {CHART_NAME} chart to {NEW_VERSION}",
     "| File | Chart | Change |\n| :-- | :-- | :-- |\n{FILE_PATH} | {CHART_NAME} | `{OLD_VERSION}` -> `{NEW_VERSION}`",
     "{CHART_NAME}: `{OLD_VERSION}` -> `{NEW_VERSION}`",
 )
@@ -332,43 +336,44 @@ def get_chart_updates(enable_prereleases=False, verify_ssl=True):
         for repo_charts in repo_charts['entries'].items():
             chart_name = repo_charts[0]
             for chart in ansible_helm_charts_matching:
-                if chart['name'] == chart_name:
-                    versions = []
-                    ansible_chart_version = [chart['version'] for chart in ansible_helm_charts_matching if
-                                            chart['name'] == chart_name]
-                    ansible_chart_version = ansible_chart_version[0]
-                    for repo_chart in repo_charts[1]:
-                        if not semver.VersionInfo.isvalid(repo_chart['version'].lstrip('v')):
-                            logging.warning(f"helm chart '{repo_chart['name']}' has an invalid "
-                                            f"version '{repo_chart['version']}'")
-                            continue
-                        version = semver.VersionInfo.parse(repo_chart['version'].lstrip('v'))
-                        if version.prerelease and not enable_prereleases:
-                            logging.debug(f"skipping version '{repo_chart['version']}' of helm chart '{repo_chart['name']}' "
-                                        f"because it is a pre-release")
-                            continue
-                        logging.debug(f"found version '{repo_chart['version']}' of "
-                                    f"helm chart '{repo_chart['name']}'")
-                        versions.extend([repo_chart['version']])
-
-                    clean_versions = [version.lstrip('v') for version in versions]
-                    latest_version = str(max(map(semver.VersionInfo.parse, clean_versions)))
-
-                    latest_version = [version for version in versions if latest_version in version]
-
-                    if semver.match(latest_version[0].lstrip('v'), f">{ansible_chart_version.lstrip('v')}"):
-                        repo_chart = {
-                            'name': chart_name,
-                            'old_version': ansible_chart_version,
-                            'new_version': latest_version[0],
-                            'yaml_path': chart['yaml_path']
-                        }
-                        chart_updates.append(repo_chart)
-                        logging.info(f"found update for helm chart '{repo_chart['name']}': "
-                                    f"'{ansible_chart_version}' to '{latest_version[0]}'")
+                if chart['name'] != chart_name:
+                    continue
+                versions = []
+                ansible_chart_version = [chart['version'] for chart in ansible_helm_charts_matching if
+                                        chart['name'] == chart_name]
+                ansible_chart_version = ansible_chart_version[0]
+                for repo_chart in repo_charts[1]:
+                    if not semver.VersionInfo.isvalid(repo_chart['version'].lstrip('v')):
+                        logging.warning(f"helm chart '{repo_chart['name']}' has an invalid "
+                                        f"version '{repo_chart['version']}'")
                         continue
-                    logging.debug(f"no update found for helm chart '{repo_charts[0]}'. "
-                                f"current version in ansible helm task is '{ansible_chart_version}'")
+                    version = semver.VersionInfo.parse(repo_chart['version'].lstrip('v'))
+                    if version.prerelease and not enable_prereleases:
+                        logging.debug(f"skipping version '{repo_chart['version']}' of helm chart '{repo_chart['name']}' "
+                                    f"because it is a pre-release")
+                        continue
+                    logging.debug(f"found version '{repo_chart['version']}' of "
+                                f"helm chart '{repo_chart['name']}'")
+                    versions.extend([repo_chart['version']])
+
+                clean_versions = [version.lstrip('v') for version in versions]
+                latest_version = str(max(map(semver.VersionInfo.parse, clean_versions)))
+
+                latest_version = [version for version in versions if latest_version in version]
+
+                if semver.match(latest_version[0].lstrip('v'), f">{ansible_chart_version.lstrip('v')}"):
+                    repo_chart = {
+                        'name': chart_name,
+                        'old_version': ansible_chart_version,
+                        'new_version': latest_version[0],
+                        'yaml_path': chart['yaml_path']
+                    }
+                    chart_updates.append(repo_chart)
+                    logging.info(f"found update for helm chart '{repo_chart['name']}': "
+                                f"'{ansible_chart_version}' to '{latest_version[0]}'")
+                    continue
+                logging.debug(f"no update found for helm chart '{repo_charts[0]}'. "
+                            f"current version in ansible helm task is '{ansible_chart_version}'")
 
 
 def get_assignee_ids(cli: gitlab.Gitlab, assignees: List[str]) -> List[int]:
@@ -452,10 +457,10 @@ def update_project(project: object,
     if not isinstance(project, gitlab.v4.objects.Project):
         raise TypeError(f"parameter 'project' must be of type 'gitlab.v4.objects.Project', got '{type(project)}'")
 
-    pattern = re.compile(f"chart_version: {old_version}")
+    chart_version = re.compile(pattern.chart_version.format(OLD_VERSION=old_version))
     with open(file=str(repo_file_path), mode="r+") as f:
         old_content = f.read()
-        new_content = re.sub(pattern, f"chart_version: {new_version}", old_content)
+        new_content = re.sub(chart_version, f"chart_version: {new_version}", old_content)
 
         branch_name = templates.branch_name.format(
             CHART_NAME=chart_name,
@@ -551,9 +556,9 @@ def get_merge_request_by_name(project: object,
 
     mrs = project.mergerequests.list(order_by='updated_at',
                                      state='opened')
-    pattern = re.compile(f"^(update chart {chart_name} to )v?(\d.\d.\d).*")
+    mr_title = re.compile(pattern.mr_title.format(CHART_NAME=chart_name))
     for mr in mrs:
-        if pattern.match(mr.title) and "helminator" in mr.labels:  # Todo: think again over checking for labels here
+        if mr_title.match(mr.title) and "helminator" in mr.labels:
             return mr
 
     return None
@@ -598,7 +603,7 @@ def check_merge_requests(project: object,
     if not isinstance(project, gitlab.v4.objects.Project):
         raise TypeError("you must pass an 'gitlab.v4.objects.Project' object!")
 
-    pattern = re.compile(f"^(update {chart_name} chart to )v?(\d.\d.\d).*")
+    mr_title = re.compile(pattern.mr_title.format(CHART_NAME=chart_name))
     Status = namedtuple("Status", ["closed", "exists", "update", "missing"])
 
     mrs = project.mergerequests.list(order_by='updated_at')
@@ -606,7 +611,7 @@ def check_merge_requests(project: object,
         if "helminator" not in mr.labels:
             continue
 
-        if not pattern.match(mr.title):
+        if not mr_title.match(mr.title):
             continue
 
         if mr.state == "closed" and mr.title == title:
@@ -617,7 +622,7 @@ def check_merge_requests(project: object,
             logging.debug(f"merge request '{title}' already exists")
             return Status(closed=False, exists=True, update=False, missing=False)
 
-        if mr.state == "closed":
+        if mr.state == "closed":  # closed mr with 'old version'
             continue
 
         return Status(closed=False, exists=False, update=True, missing=False)
@@ -775,7 +780,7 @@ def main():
         logging.critical(f"unable to process charts. {str(e)}")
         sys.exit(1)
 
-    if env_vars.enable_mergerequests:
+    if env_vars.enable_mergerequests and chart_updates:
         try:
             try:
                 cli = gitlab.Gitlab(url=env_vars.gitlab_url,
@@ -793,7 +798,7 @@ def main():
 
             try:
                 project = get_project(cli=cli,
-                                                    project_id=env_vars.project_id)
+                                      project_id=env_vars.project_id)
             except Exception as e:
                 raise ConnectionError(f"cannot get gitlab project. {str(e)}")
 
