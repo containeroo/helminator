@@ -20,7 +20,7 @@ Helminator is built to run in a CI environment (e.g. GitLab CI).
 - [Ansible Kubernetes Community collection](https://github.com/ansible-collections/community.kubernetes)
 - Kubernetes Cluster
 - GitLab
-- Slack App
+- Slack App (optional)
 
 ## Configration
 
@@ -28,16 +28,18 @@ In the examples directory you can find an example playbook including the require
 
 Helminator takes the following environment variables:
 
-| Variable                        | Description                                         | Example                                                |
-| :------------------------------ | :-------------------------------------------------- | :----------------------------------------------------- |
-| `HELMINATOR_ROOT_DIR`           | Directory to scan                                   | `CI_PROJECT_DIR`                                       |
-| `HELMINATOR_ENABLE_PRERELEASES` | Enable pre-release processing (defaults to `false`) | `true` or `false`                                      |
-| `HELMINATOR_LOGLEVEL`           | Set loglevel (defaults to `info`)                   | one of `critical`, `error`, `warning`, `info`, `debug` |
-| `HELMINATOR_VARS_FILE`          | path to file with extra variables                   | `${CI_PROJECT_DIR}/vars/main.yml`                      |
-| `HELMINATOR_VERIFY_SSL`         | verify ssl certificate (defaults to `true`)         | `true` or `false`                                      |
-| `HELMINATOR_SLACK_API_TOKEN`    | Slack API Token                                     | `xorb-abc-def`                                         |
-| `HELMINATOR_SLACK_CHANNEL`      | Slack channel to send message to                    | `#kubernetes`                                          |
-| `GITLAB_TOKEN`                  | token for access                                    | `12345678`                                             |
+| Variable                        | Description                                                       | Example                                                |
+| :------------------------------ | :---------------------------------------------------------------- | :----------------------------------------------------- |
+| `HELMINATOR_ROOT_DIR`           | Directory to scan (defaults to `CI_PROJECT_DIR`)                  | `ansible/`                                             |
+| `HELMINATOR_VARS_FILE`          | Path to file with extra variables                                 | `vars/main.yml`                                        |
+| `HELMINATOR_ENABLE_PRERELEASES` | Enable pre-release processing (defaults to `false`)               | `true` or `false`                                      |
+| `HELMINATOR_VERIFY_SSL`         | Verify ssl certificate (defaults to `true`)                       | `true` or `false`                                      |
+| `HELMINATOR_LOGLEVEL`           | Set loglevel (defaults to `info`)                                 | one of `critical`, `error`, `warning`, `info`, `debug` |
+| `ENABLE_MERGEREQUESTS`          | Create for each chart update a merge request (defaults to `true`) | `true` or `false`                                      |
+| `GITLAB_TOKEN`                  | Gitlab access token                                               | `12345678`                                             |
+| `ASSIGNEES`                     | List of name of assignees, separate by a comma                    | `user1,user2`                                          |
+| `HELMINATOR_SLACK_API_TOKEN`    | Slack API Token                                                   | `xorb-abc-def`                                         |
+| `HELMINATOR_SLACK_CHANNEL`      | Slack channel to send message to                                  | `#kubernetes`                                          |
 
 ### Slack App
 
