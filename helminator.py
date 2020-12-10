@@ -30,7 +30,7 @@ templates = Templates(
     "Update {CHART_NAME} chart to {NEW_VERSION}",  # merge_request_title
     "| File | Chart | Change |\n| :-- | :-- | :-- |\n{FILE_PATH} | {CHART_NAME} | `{OLD_VERSION}` -> `{NEW_VERSION}`",  # description
     "chart_version: {VERSION}",  # chart_version
-    "{CHART_NAME}: `{OLD_VERSION}` -> `{NEW_VERSION}`",  # slack_notification
+    "{LINK}{CHART_NAME}: `{OLD_VERSION}` -&gt; `{NEW_VERSION}`",  # slack_notification
 )
 
 try:
@@ -57,6 +57,9 @@ def check_env_vars():
 
     enable_mergerequests = os.environ.get("HELMINATOR_ENABLE_MERGEREQUESTS", "true").lower() == "true"
     gitlab_token = os.environ.get("HELMINATOR_GITLAB_TOKEN")
+    remove_source_branch = os.environ.get("HELMINATOR_GITLAB_REMOVE_SOURCE_BRANCH", "true").lower() == "true"
+    squash = os.environ.get("HELMINATOR_GITLAB_SQUASH_COMMITS", "false").lower() == "true"
+
     assignees = os.environ.get("HELMINATOR_GITLAB_ASSIGNEES")
     assignees = ([] if not assignees else [a.strip() for a in assignees.split(",") if a])
 
@@ -84,6 +87,8 @@ def check_env_vars():
                                        'loglevel',
                                        'enable_mergerequests',
                                        'gitlab_token',
+                                       'remove_source_branch',
+                                       'squash',
                                        'assignees',
                                        'slack_token',
                                        'slack_channel',
@@ -100,6 +105,8 @@ def check_env_vars():
         loglevel,
         enable_mergerequests,
         gitlab_token,
+        remove_source_branch,
+        squash,
         assignees,
         slack_token,
         slack_channel,
@@ -435,7 +442,9 @@ def update_project(project: object,
                    chart_name: str,
                    old_version: str,
                    new_version: str,
-                   assignee_ids: List[int] = []):
+                   remove_source_branch: bool = False,
+                   squash: bool = False,
+                   assignee_ids: List[int] = []) -> object:
     """update file in gitlab project
 
     Args:
@@ -445,6 +454,8 @@ def update_project(project: object,
         chart_name (str): name of chart
         old_version (str): current version of chart
         new_version (str): new version of chart
+        remove_source_branch (str, optional):. remove brunch after merge. Defaults to 'False'.
+        squash (str, optional):. squash commits after merge. Defaults to 'False'.
         assignee_ids (List[int], optional): list of assignee id's to assign mr. Defaults to [].
 
     Raises:
@@ -452,6 +463,9 @@ def update_project(project: object,
         LookupError: branch could not be created
         Exception: merge request could not be created
         Exception: unable to upload new file content
+
+    Returns:
+        gitlab.v4.objects.ProjectMergeRequest: gitlab merge request object
     """
     if not isinstance(project, gitlab.v4.objects.Project):
         raise TypeError(f"parameter 'project' must be of type 'gitlab.v4.objects.Project', got '{type(project)}'")
@@ -479,6 +493,7 @@ def update_project(project: object,
                     NEW_VERSION=new_version)
     branch_name = templates.branch_name.format(CHART_NAME=chart_name)
 
+    mr = None
     if merge_request.update:
         try:
             mr = get_merge_request_by_name(project=project,
@@ -488,6 +503,8 @@ def update_project(project: object,
 
             mr.title = mergerequest_title
             mr.description = description
+            mr.remove_source_branch = remove_source_branch
+            mr.squash = squash
             mr.save()
         except Exception as e:
             raise Exception(f"cannot update merge request. {str(e)}")
@@ -496,17 +513,20 @@ def update_project(project: object,
         try:
             create_branch(project=project,
                           branch_name=branch_name)
+        except gitlab.exceptions.GitlabCreateError as e:
+           logging.debug(f"cannot create branch '{branch_name}'. {str(e.error_message)}")
         except Exception as e:
             raise Exception(f"cannot create branch '{branch_name}'. {str(e)}")
 
         try:
-            create_merge_request(
-                project=project,
-                branch_name=branch_name,
-                description=description,
-                title=mergerequest_title,
-                assignee_ids=assignee_ids,
-                labels=["helminator"])
+            mr = create_merge_request(project=project,
+                                     branch_name=branch_name,
+                                     description=description,
+                                     title=mergerequest_title,
+                                     remove_source_branch=remove_source_branch,
+                                     squash=squash,
+                                     assignee_ids=assignee_ids,
+                                     labels=["helminator"])
         except Exception as e:
             raise Exception(f"unable to create merge request. {str(e)}")
 
@@ -528,6 +548,8 @@ def update_project(project: object,
                 path_to_file=gitlab_file_path)
     except Exception as e:
         raise Exception(f"unable to upload file. {str(e)}")
+
+    return mr
 
 
 def get_merge_request_by_name(project: object,
@@ -579,6 +601,7 @@ def create_branch(project: object,
             'ref': 'master',
         }
     )
+
     logging.info(f"successfully created branch '{branch_name}'")
 
     return branch
@@ -634,21 +657,28 @@ def check_merge_requests(project: object,
 def create_merge_request(project: object,
                          title: str,
                          branch_name: str,
-                         description : str = None,
+                         description: str = None,
+                         remove_source_branch: bool = False,
+                         squash: bool = False,
                          assignee_ids: List[int] = [],
-                         labels: List[str] = []):
+                         labels: List[str] = []) -> object:
     """create merge request on a gitlab project
     Args:
         project (gitlab.v4.objects.Project): gitlab project object
-        description (str, optional): description of merge request
         title (str): title of branch
         branch_name (str, optional): name of branch. Defaults to 'master'.
+        description (str, optional): description of merge request
+        remove_source_branch (str, optional):. remove brunch after merge. Defaults to 'False'.
+        squash (str, optional):. squash commits after merge. Defaults to 'False'.
         assignee_ids (List[int], optional): assign merge request to persons. Defaults to 'None'.
         labels (List[str]): labels
     Raises:
         TypeError: project variable is not of type 'gitlab.v4.objects.Project'
         ValueError: 'assignee_ids' must be a list of int
         LookupError: branch does not exist
+
+    Returns:
+        gitlab.v4.objects.ProjectMergeRequest: gitlab merge request object
     """
     if not isinstance(project, gitlab.v4.objects.Project):
         raise TypeError("you must pass an 'gitlab.v4.objects.Project' object!")
@@ -676,6 +706,12 @@ def create_merge_request(project: object,
     if labels:
         mr['labels'] = labels
 
+    if remove_source_branch:
+        mr['remove_source_branch'] = remove_source_branch
+
+    if squash:
+        mr['squash'] = squash
+
     mr = project.mergerequests.create(mr)
     if assignee_ids:
         mr.todo()
@@ -683,6 +719,8 @@ def create_merge_request(project: object,
         mr.save()
 
     logging.info(f"successfully created merge request '{title}'")
+
+    return mr
 
 
 def update_file(project: object,
@@ -809,13 +847,17 @@ def main():
                 repo_file_path = str(chart['yaml_path'])
 
                 try:
-                    update_project(project=project,
-                                   gitlab_file_path=gitlab_file_path,
-                                   repo_file_path=repo_file_path,
-                                   chart_name=chart['name'],
-                                   old_version=chart['old_version'],
-                                   new_version=chart['new_version'],
-                                   assignee_ids=assignee_ids)
+                    mr = update_project(project=project,
+                                        gitlab_file_path=gitlab_file_path,
+                                        repo_file_path=repo_file_path,
+                                        chart_name=chart['name'],
+                                        old_version=chart['old_version'],
+                                        new_version=chart['new_version'],
+                                        remove_source_branch=env_vars.remove_source_branch,
+                                        squash=env_vars.squash,
+                                        assignee_ids=assignee_ids)
+                    if mr:
+                        chart['mr_link'] = mr.web_url
                 except Exception as e:
                     logging.error(f"cannot update repository. {e}")
         except Exception as e:
@@ -826,7 +868,8 @@ def main():
         text = [f"The following chart update{'s are' if len(chart_updates) > 1 else ' is'} available:"]
         text.extend([templates.slack_notification.format(CHART_NAME=chart['name'],
                                                          OLD_VERSION=chart['old_version'],
-                                                         NEW_VERSION=chart['new_version']) for chart in chart_updates])
+                                                         NEW_VERSION=f"{chart['new_version']}>" if chart['mr_link'] else chart['new_version'],
+                                                         LINK=f"{chart['mr_link']}|" if chart['mr_link'] else "") for chart in chart_updates])
         text = '\n'.join(text)
 
         try:

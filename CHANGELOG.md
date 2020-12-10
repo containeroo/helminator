@@ -1,5 +1,17 @@
 # Changelog
 
+## [v2.0.1](https://github.com/containeroo/helminator/tree/v2.0.1) (2020-12-10)
+
+[All Commits](https://github.com/containeroo/helminator/compare/v2.0.0...v2.0.1)
+
+**New features:**
+
+- Slack message contains link to merge request
+- new variables:
+  - `HELMINATOR_GITLAB_REMOVE_SOURCE_BRANCH` -> Delete source branch when merge request is accepted
+  - `HELMINATOR_GITLAB_SQUASH_COMMITS` -> Squash commits when merge request is accepted
+- bugfixes
+
 ## [v2.0.0](https://github.com/containeroo/helminator/tree/v2.0.0) (2020-12-10)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v1.7.1...v2.0.0)
