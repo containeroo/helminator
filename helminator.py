@@ -15,17 +15,17 @@ __version__ = "2.0.0"
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
 
-Pattern = namedtuple("Pattern", ["with_items", "mr_title", "chart_version"])
+Pattern = namedtuple("Pattern", ["with_items", "mr_title", "chart_version",])
 pattern = Pattern(
     re.compile(r"^{{.*\.(\w+) }}"),  # with_items
     r"^(Update {CHART_NAME} chart to )v?(\d+.\d+.\d+).*",  # mr_title
-    "chart_version: {OLD_VERSION}"  # chart_version
+    "chart_version: {VERSION}",  # chart_version
 )
 
 helm_task_names = ['community.kubernetes.helm', 'helm']
 helm_repository_task_names = ['community.kubernetes.helm_repository', 'helm_repository']
 
-Templates = namedtuple("templates", ["branch_name", "merge_request_title", "description", "slack_notification"])
+Templates = namedtuple("templates", ["branch_name", "merge_request_title", "description", "slack_notification",])
 templates = Templates(
     "helminator/{CHART_NAME}",  # branche_name
     "Update {CHART_NAME} chart to {NEW_VERSION}",  # merge_request_title
@@ -48,32 +48,31 @@ except Exception:
 
 def check_env_vars():
     ci_dir_project = os.environ.get("CI_PROJECT_DIR")
-    search_dir = os.environ.get("HELMINATOR_ROOT_DIR", ci_dir_project)
-    vars_file = os.environ.get("HELMINATOR_VARS_FILE")
+    search_dir = os.environ.get("HELMINATOR_ANSIBLE_ROOT_DIR", ci_dir_project)
+    vars_file = os.environ.get("HELMINATOR_ANSIBLE_VARS_FILE")
     enable_prereleases = os.environ.get("HELMINATOR_ENABLE_PRERELEASES", "false").lower() == "true"
 
     verify_ssl = os.environ.get("HELMINATOR_VERIFY_SSL", "false").lower() == "true"
     loglevel = os.environ.get("HELMINATOR_LOGLEVEL", "info").lower()
 
-    enable_mergerequests = os.environ.get("ENABLE_MERGEREQUESTS", "true").lower() == "true"
-    gitlab_token = os.environ.get("GITLAB_TOKEN")
-    assignees = os.environ.get("ASSIGNEES")
-    assignees = ([] if not assignees else
-                 [a.strip() for a in assignees.split(",") if a])
+    enable_mergerequests = os.environ.get("HELMINATOR_ENABLE_MERGEREQUESTS", "true").lower() == "true"
+    gitlab_token = os.environ.get("HELMINATOR_GITLAB_TOKEN")
+    assignees = os.environ.get("HELMINATOR_GITLAB_ASSIGNEES")
+    assignees = ([] if not assignees else [a.strip() for a in assignees.split(",") if a])
 
     slack_token = os.environ.get("HELMINATOR_SLACK_API_TOKEN")
     slack_channel = os.environ.get("HELMINATOR_SLACK_CHANNEL")
 
     gitlab_url = os.environ.get("CI_SERVER_URL")
     project_id = os.environ.get("CI_PROJECT_ID")
+    if not str(project_id).isdigit():
+        raise EnvironmentError("environment variable 'CI_PROJECT_ID' must be int!")
 
     if not search_dir:
-        raise EnvironmentError(
-            "environment variable 'HELMINATOR_ROOT_DIR' not set!")
+        raise EnvironmentError("environment variable 'HELMINATOR_ROOT_DIR' not set!")
 
     if slack_token and not slack_channel:
-        raise EnvironmentError(
-            "environment variable 'HELMINATOR_SLACK_CHANNEL' not set!")
+        raise EnvironmentError("environment variable 'HELMINATOR_SLACK_CHANNEL' not set!")
 
     if enable_mergerequests and not gitlab_token:
         raise EnvironmentError("environment variable 'GITLAB_TOKEN' not set!")
@@ -450,7 +449,7 @@ def update_project(project: object,
 
     Raises:
         TypeError: project is not of type gitlab.v4.objects.Project
-        Exception: branch could not be created
+        LookupError: branch could not be created
         Exception: merge request could not be created
         Exception: unable to upload new file content
     """
@@ -465,7 +464,7 @@ def update_project(project: object,
                                              title=mergerequest_title,
                                              chart_name=chart_name)
     except Exception as e:
-        raise Exception(f"unable check existing merge requests. {str(e)}")
+        raise LookupError(f"unable check existing merge requests. {str(e)}")
 
     if merge_request.closed:
         return
@@ -474,17 +473,17 @@ def update_project(project: object,
         return
 
     description = templates.description.format(
-                        FILE_PATH=gitlab_file_path,
-                        CHART_NAME=chart_name,
-                        OLD_VERSION=old_version,
-                        NEW_VERSION=new_version)
+                    FILE_PATH=gitlab_file_path,
+                    CHART_NAME=chart_name,
+                    OLD_VERSION=old_version,
+                    NEW_VERSION=new_version)
 
     if merge_request.update:
         try:
             mr = get_merge_request_by_name(project=project,
                                            chart_name=chart_name)
             if not mr:
-                raise Exception("merge request not found!")
+                raise LookupError("merge request not found!")
 
             mr.title = mergerequest_title
             mr.description = description
@@ -498,7 +497,7 @@ def update_project(project: object,
             create_branch(project=project,
                           branch_name=branch_name)
         except Exception as e:
-            raise Exception(f"cannot create branch '{branch_name}'. {e.error_message}")
+            raise Exception(f"cannot create branch '{branch_name}'. {str(e)}")
 
         try:
             create_merge_request(
@@ -513,19 +512,21 @@ def update_project(project: object,
             raise Exception(f"unable to create merge request. {str(e)}")
 
         try:
-            chart_version = re.compile(pattern=pattern.chart_version.format(OLD_VERSION=old_version),
-                                       flags=re.IGNORECASE)
+            old_chart_version = re.compile(pattern=pattern.chart_version.format(VERSION=old_version),
+                                           flags=re.IGNORECASE)
+            new_chart_version = pattern.chart_version.format(VERSION=new_version),
             with open(file=str(repo_file_path), mode="r+") as f:
                 old_content = f.read()
-                new_content = re.sub(chart_version, f"chart_version: {new_version}", old_content)
+                new_content = re.sub(pattern=old_chart_version,
+                                     repl=new_chart_version,
+                                     string=old_content)
 
                 update_file(
                     project=project,
                     branch_name=branch_name,
                     commit_msg=mergerequest_title,
                     content=new_content,
-                    path_to_file=gitlab_file_path,
-                )
+                    path_to_file=gitlab_file_path)
         except Exception as e:
             raise Exception(f"unable to upload file. {str(e)}")
 
@@ -577,7 +578,8 @@ def create_branch(project: object,
         {
             'branch': branch_name,
             'ref': 'master',
-        })
+        }
+    )
     logging.info(f"successfully created branch '{branch_name}'")
 
     return branch
@@ -702,10 +704,8 @@ def update_file(project: object,
     if not isinstance(project, gitlab.v4.objects.Project):
         raise TypeError("you must pass an 'gitlab.v4.objects.Project' object!")
 
-    commited_file = project.files.get(
-        file_path=path_to_file,
-        ref=branch_name
-    )
+    commited_file = project.files.get(file_path=path_to_file,
+                                      ref=branch_name)
 
     base64_message = commited_file.content
     base64_bytes = base64_message.encode('ascii')
