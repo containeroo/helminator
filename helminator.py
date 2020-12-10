@@ -16,7 +16,7 @@ ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
 Pattern = namedtuple("Pattern", ["with_items"])
 pattern = Pattern(
-    re.compile(r"^{{.*\.(\w+)  ?}}")
+    re.compile(r"^{{.*\.(\w+) }}")
 )
 helm_task_names = ['community.kubernetes.helm', 'helm']
 helm_repository_task_names = ['community.kubernetes.helm_repository', 'helm_repository']
