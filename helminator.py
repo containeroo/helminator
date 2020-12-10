@@ -18,7 +18,7 @@ errors = False
 Pattern = namedtuple("Pattern", ["with_items", "mr_title", "chart_version"])
 pattern = Pattern(
     re.compile(r"^{{.*\.(\w+) }}"),
-    r"^(Update chart {CHART_NAME} to )v?(\d.\d.\d).*",
+    r"^(Update {CHART_NAME} chart to )v?(\d+.\d+.\d+).*",
     "chart_version: {OLD_VERSION}"
 )
 
