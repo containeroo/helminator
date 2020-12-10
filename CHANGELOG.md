@@ -8,7 +8,7 @@
 
 - pull and merge request:
   - Can create pull and merge request
-  - Can assign merge request
+  - Can assign merge request to one or more users
   - Update existing pull and merge request
   - Skip creating new merge request if the same merge request was already closed
 - Possibility to disable SSL verification (good if using proxy)
