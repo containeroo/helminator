@@ -856,7 +856,8 @@ def main():
             except Exception as e:
                 raise ConnectionError(f"cannot get gitlab project. {str(e)}")
 
-            len_base = len(env_vars.search_dir) + 1
+            search_dir = Path(search_dir)
+            len_base = len(search_dir) + 1
             for chart in chart_updates:
                 gitlab_file_path = str(chart['yaml_path'])[len_base:]
                 repo_file_path = str(chart['yaml_path'])
