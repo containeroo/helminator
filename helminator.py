@@ -868,8 +868,8 @@ def main():
         text = [f"The following chart update{'s are' if len(chart_updates) > 1 else ' is'} available:"]
         text.extend([templates.slack_notification.format(CHART_NAME=chart['name'],
                                                          OLD_VERSION=chart['old_version'],
-                                                         NEW_VERSION=f"{chart['new_version']}>" if chart['mr_link'] else chart['new_version'],
-                                                         LINK=f"{chart['mr_link']}|" if chart['mr_link'] else "") for chart in chart_updates])
+                                                         NEW_VERSION=f"{chart['new_version']}>" if chart.get('mr_link') else chart['new_version'],
+                                                         LINK=f"{chart['mr_link']}|" if chart.get('mr_link') else "") for chart in chart_updates])
         text = '\n'.join(text)
 
         try:
