@@ -818,9 +818,9 @@ def main():
 
     if env_vars.slack_token and chart_updates:
         text = [f"The following chart update{'s are' if len(chart_updates) > 1 else ' is'} available:"]
-        text.extend([templates.slack_notification.format(CHART_NAME=chart_update['name'],
+        text.extend([templates.slack_notification.format(CHART_NAME=chart['name'],
                                                          OLD_VERSION=chart['old_version'],
-                                                         NEW_VERSION=chart['new_version']) for chart_update in chart_updates])
+                                                         NEW_VERSION=chart['new_version']) for chart in chart_updates])
         text = '\n'.join(text)
 
         try:
