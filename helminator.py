@@ -15,21 +15,21 @@ __version__ = "2.0.0"
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
 
-Pattern = namedtuple("Pattern", ["with_items", "mr_title", "chart_version",])
+Pattern = namedtuple("Pattern", ["with_items", "mr_title",])
 pattern = Pattern(
     re.compile(r"^{{.*\.(\w+) }}"),  # with_items
     r"^(Update {CHART_NAME} chart to )v?(\d+.\d+.\d+).*",  # mr_title
-    "chart_version: {VERSION}",  # chart_version
 )
 
 helm_task_names = ['community.kubernetes.helm', 'helm']
 helm_repository_task_names = ['community.kubernetes.helm_repository', 'helm_repository']
 
-Templates = namedtuple("templates", ["branch_name", "merge_request_title", "description", "slack_notification",])
+Templates = namedtuple("templates", ["branch_name", "merge_request_title", "description", "chart_version", "slack_notification",])
 templates = Templates(
     "helminator/{CHART_NAME}",  # branche_name
     "Update {CHART_NAME} chart to {NEW_VERSION}",  # merge_request_title
     "| File | Chart | Change |\n| :-- | :-- | :-- |\n{FILE_PATH} | {CHART_NAME} | `{OLD_VERSION}` -> `{NEW_VERSION}`",  # description
+    "chart_version: {VERSION}",  # chart_version
     "{CHART_NAME}: `{OLD_VERSION}` -> `{NEW_VERSION}`",  # slack_notification
 )
 
@@ -477,6 +477,7 @@ def update_project(project: object,
                     CHART_NAME=chart_name,
                     OLD_VERSION=old_version,
                     NEW_VERSION=new_version)
+    branch_name = templates.branch_name.format(CHART_NAME=chart_name)
 
     if merge_request.update:
         try:
@@ -492,7 +493,6 @@ def update_project(project: object,
             raise Exception(f"cannot update merge request. {str(e)}")
 
     if merge_request.missing:
-        branch_name = templates.branch_name.format(CHART_NAME=chart_name)
         try:
             create_branch(project=project,
                           branch_name=branch_name)
@@ -506,29 +506,28 @@ def update_project(project: object,
                 description=description,
                 title=mergerequest_title,
                 assignee_ids=assignee_ids,
-                labels=["helminator"]
-            )
+                labels=["helminator"])
         except Exception as e:
             raise Exception(f"unable to create merge request. {str(e)}")
 
-        try:
-            old_chart_version = re.compile(pattern=pattern.chart_version.format(VERSION=old_version),
-                                           flags=re.IGNORECASE)
-            new_chart_version = pattern.chart_version.format(VERSION=new_version),
-            with open(file=str(repo_file_path), mode="r+") as f:
-                old_content = f.read()
-                new_content = re.sub(pattern=old_chart_version,
-                                     repl=new_chart_version,
-                                     string=old_content)
+    try:
+        old_chart_version = re.compile(pattern=templates.chart_version.format(VERSION=old_version),
+                                       flags=re.IGNORECASE)
+        new_chart_version = templates.chart_version.format(VERSION=new_version)
+        with open(file=repo_file_path, mode="r+") as f:
+            old_content = f.read()
+            new_content = re.sub(pattern=old_chart_version,
+                                 repl=new_chart_version,
+                                 string=old_content)
 
-                update_file(
-                    project=project,
-                    branch_name=branch_name,
-                    commit_msg=mergerequest_title,
-                    content=new_content,
-                    path_to_file=gitlab_file_path)
-        except Exception as e:
-            raise Exception(f"unable to upload file. {str(e)}")
+            update_file(
+                project=project,
+                branch_name=branch_name,
+                commit_msg=mergerequest_title,
+                content=new_content,
+                path_to_file=gitlab_file_path)
+    except Exception as e:
+        raise Exception(f"unable to upload file. {str(e)}")
 
 
 def get_merge_request_by_name(project: object,
