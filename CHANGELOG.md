@@ -6,18 +6,23 @@
 
 **New features:**
 
-- pull and merge request:
-  - Can create pull and merge request
-  - Can assign merge request to one or more users
-  - Update existing pull and merge request
-  - Skip creating new merge request if the same merge request was already closed
-- Possibility to disable SSL verification (good if using proxy)
-- Update requirements:
-  - requests to v2.25.0
-  - semver to v2.14.0
-  - slackclient to v2.9.3
-- typos
+- Introducing pull requests:
+  - create a pull request when an update is found
+  - assign pull request to one or more users
+  - update existing pull requests when a new update is found
+  - skip updating by closing the pull request
+- Added the ability to disable SSL verification (e.g. when behind a corporate proxy)
+
+**Dependencies:**
+
+- Update requests to v2.25.0 (#42)
+- Update semver to v2.14.0 (#40)
+- Update slackclient to v2.9.3 (#41)
+
+**Bug fixes:**
+
 - minor bugfixes
+- typos
 
 ## [v1.7.1](https://github.com/containeroo/helminator/tree/v1.7.1) (2020-10-12)
 
