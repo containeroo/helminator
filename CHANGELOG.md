@@ -1,12 +1,23 @@
 # Changelog
 
-## [v2.0.0](https://github.com/containeroo/helminator/tree/v2.0.0) (2020-12-09)
+## [v2.0.0](https://github.com/containeroo/helminator/tree/v2.0.0) (2020-12-10)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v1.7.1...v2.0.0)
 
 **New features:**
 
-- can create pull request and merge request
+- pull and merge request:
+  - Can create pull and merge request
+  - Can assign merge request
+  - Update existing pull and merge request
+  - Skip creating new merge request if the same merge request was already closed
+- Possibility to disable SSL verification (good if using proxy)
+- Update requirements:
+  - requests to v2.25.0
+  - semver to v2.14.0
+  - slackclient to v2.9.3
+- typos
+- minor bugfixes
 
 ## [v1.7.1](https://github.com/containeroo/helminator/tree/v1.7.1) (2020-10-12)
 
