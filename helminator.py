@@ -488,26 +488,6 @@ def update_project(project: object,
         if merge_request.exists:
             return
 
-        if merge_request.update:
-            current_branch = None
-            try:
-                mr = get_merge_request_by_name(project=project,
-                                               chart_name=chart_name)
-                if not mr:
-                    raise Exception("merge request not found!")
-
-                current_branch = mr.source_branch
-                mr.title = mergerequest_title
-                mr.description = description
-                mr.save()
-            except Exception as e:
-                raise Exception(f"cannot update merge request. {str(e)}")
-
-            try:
-                project.branches.delete(current_branch)
-            except Exception as e:
-                raise Exception(f"cannot delete branch '{current_branch}'. {str(e)}")
-
         try:
             if merge_request.update or merge_request.missing:
                 create_branch(project=project,
@@ -515,8 +495,26 @@ def update_project(project: object,
         except Exception as e:
             raise Exception(f"cannot create branch '{branch_name}'. {e.error_message}")
 
+        if merge_request.update:
+            old_current_branch = None
+            try:
+                mr = get_merge_request_by_name(project=project,
+                                               chart_name=chart_name)
+                if not mr:
+                    raise Exception("merge request not found!")
+
+                old_current_branch = mr.source_branch
+            except Exception as e:
+                raise Exception(f"cannot update merge request. {str(e)}")
+
+            try:
+                project.branches.delete(old_current_branch)
+                logging.debug(f"successfully deleted old branch '{old_current_branch}'")
+            except Exception as e:
+                raise Exception(f"cannot delete branch '{old_current_branch}'. {str(e)}")
+
         try:
-            if merge_request.missing:
+            if merge_request.missing or merge_request.update:
                 create_merge_request(
                         project=project,
                         branch_name=branch_name,
@@ -568,23 +566,28 @@ def get_merge_request_by_name(project: object,
 
 
 def create_branch(project: object,
-                  branch_name: str):
+                  branch_name: str) -> object:
     """create a branch on gitlab
     Args:
         project (gitlab.v4.objects.Project): gitlab project object
         branch_name (str): name of branch
     Raises:
         TypeError: project variable is not of type 'gitlab.v4.objects.Project'
+
+    Returns:
+        gitlab.v4.objects.ProjectBranch: gitlab branch object
     """
     if not isinstance(project, gitlab.v4.objects.Project):
         raise TypeError("you must pass an 'gitlab.v4.objects.Project' object!")
 
-    project.branches.create(
+    branch = project.branches.create(
         {
             'branch': branch_name,
             'ref': 'master',
         })
     logging.info(f"successfully created branch '{branch_name}'")
+
+    return branch
 
 
 def check_merge_requests(project: object,
