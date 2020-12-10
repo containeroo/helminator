@@ -24,7 +24,7 @@ pattern = Pattern(
 helm_task_names = ['community.kubernetes.helm', 'helm']
 helm_repository_task_names = ['community.kubernetes.helm_repository', 'helm_repository']
 
-Templates = namedtuple("templates", ["branch_name", "merge_request_title", "description", "chart_version", "slack_notification",])
+Templates = namedtuple("templates", ["branch_name", "merge_request_title", "description", "chart_version", "slack_notification", ])
 templates = Templates(
     branch_name="helminator/{CHART_NAME}",
     merge_request_title="Update {CHART_NAME} chart to {NEW_VERSION}",
@@ -35,11 +35,13 @@ templates = Templates(
 
 try:
     import gitlab
-    from gitlab.v4.objects import Project, ProjectMergeRequest, ProjectBranch, ProjectCommit
-    from gitlab import Gitlab as Gitlab_cli
     import requests
     import semver
     import yaml
+    from gitlab import Gitlab as Gitlab_cli
+    from gitlab.exceptions import GitlabCreateError, GitlabGetError
+    from gitlab.v4.objects import (Project, ProjectBranch, ProjectCommit,
+                                   ProjectMergeRequest)
     from requests import HTTPError
     from slack import WebClient
     from slack.errors import SlackApiError
@@ -401,7 +403,7 @@ def get_assignee_ids(cli: Gitlab_cli, assignees: List[str]) -> List[int]:
     Returns:
         List[int]: list of assignees with their id's
     """
-    if not isinstance(cli, Gitlab_cli):
+    if not isinstance(cli, gitlab.Gitlab):
         raise TypeError(f"parameter 'cli' must be of type 'gitlab.Gitlab.cli', got '{type(cli)}'")
 
     assignee_ids = []
@@ -427,20 +429,20 @@ def get_project(cli: Gitlab_cli, project_id: int) -> Project:
 
     Raises:
         TypeError: cli is not of type gitlab.Gitlab.cli
-        gitlab.exceptions.GitlabGetError: project not found
+        GitlabGetError: project not found
         ConnectionError: cannot connect to gitlab project
 
     Returns:
         gitlab.v4.objects.Project: gitlab project object
     """
 
-    if not isinstance(cli, Gitlab_cli):
+    if not isinstance(cli, gitlab.Gitlab):
         raise TypeError(f"parameter 'cli' must be of type 'gitlab.Gitlab.cli', got '{type(cli)}'")
 
     try:
         project = cli.projects.get(project_id)
-    except gitlab.exceptions.GitlabGetError as e:
-        raise gitlab.exceptions.GitlabGetError(f"project '{project_id}' not found. {e}")
+    except GitlabGetError as e:
+        raise GitlabGetError(f"project '{project_id}' not found. {e}")
     except Exception as e:
         raise ConnectionError(f"unable to connect to gitlab. {str(e)}")
 
@@ -525,7 +527,7 @@ def update_project(project: Project,
         try:
             create_branch(project=project,
                           branch_name=branch_name)
-        except gitlab.exceptions.GitlabCreateError as e:
+        except GitlabCreateError as e:
            logging.debug(f"cannot create branch '{branch_name}'. {str(e.error_message)}")
         except Exception as e:
             raise Exception(f"cannot create branch '{branch_name}'. {str(e)}")
@@ -701,7 +703,7 @@ def create_merge_request(project: Project,
 
     try:
         project.branches.get(branch_name)  # check if branch exists
-    except gitlab.exceptions.GitlabGetError:
+    except GitlabGetError:
         raise LookupError(f"branch '{branch_name}' not found. to create a "
                            "merge request, you need a branch!")
     except:
