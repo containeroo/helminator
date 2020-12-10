@@ -485,13 +485,17 @@ def update_project(project: object,
         if merge_request.closed:
             return
 
-        if merge_request.update:
+        if merge_request.exists:
+            return
+
             current_branch = None
+        if merge_request.update:
             try:
                 mr = get_merge_request_by_name(project=project,
                                                chart_name=chart_name)
                 if not mr:
                     raise Exception("merge request not found!")
+
                 current_branch = mr.source_branch
                 mr.title = mergerequest_title
                 mr.description = description
@@ -500,7 +504,6 @@ def update_project(project: object,
                 raise Exception(f"cannot update merge request. {str(e)}")
 
             try:
-                if current_branch:
                     project.branches.delete(current_branch)
             except Exception as e:
                 raise Exception(f"cannot delete branch '{current_branch}'. {str(e)}")
@@ -510,7 +513,7 @@ def update_project(project: object,
                 create_branch(project=project,
                               branch_name=branch_name)
         except Exception as e:
-            raise Exception(f"cannot create branch '{branch_name}'. {str(e)}")
+            raise Exception(f"cannot create branch '{branch_name}'. {e.error_message}")
 
         try:
             if merge_request.missing:
@@ -741,6 +744,7 @@ def send_slack(msg, slack_token, slack_channel):
 
 
 def main():
+    global errors
     try:
         env_vars = check_env_vars()
     except Exception as e:
@@ -836,7 +840,7 @@ def main():
             logging.critical(f"unable to send slack notification. {e.response['error']}")
             sys.exit(1)
 
-    sys.exit(1 if errors else 0)
+    sys.exit(1 if errors else 0)  # global error testen
 
 
 if __name__ == "__main__":
