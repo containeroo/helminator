@@ -467,6 +467,7 @@ def update_project(project: object,
     Returns:
         gitlab.v4.objects.ProjectMergeRequest: gitlab merge request object
     """
+    global errors
     if not isinstance(project, gitlab.v4.objects.Project):
         raise TypeError(f"parameter 'project' must be of type 'gitlab.v4.objects.Project', got '{type(project)}'")
 
@@ -547,7 +548,8 @@ def update_project(project: object,
                 content=new_content,
                 path_to_file=gitlab_file_path)
     except Exception as e:
-        raise Exception(f"unable to upload file. {str(e)}")
+        errors = True
+        logging.error(f"unable to upload file. {str(e)}")
 
     return mr
 
@@ -859,6 +861,7 @@ def main():
                     if mr:
                         chart['mr_link'] = mr.web_url
                 except Exception as e:
+                    errors = True
                     logging.error(f"cannot update repository. {e}")
         except Exception as e:
             errors = True
