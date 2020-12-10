@@ -582,7 +582,7 @@ def create_branch(project: object,
 def check_merge_requests(project: object,
                          title: str,
                          chart_name: str) -> namedtuple:
-    """[summary]
+    """check if a merge request already exists
 
     Args:
         project (gitlab.v4.objects.Project): gitlab project object
