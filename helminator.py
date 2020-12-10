@@ -10,7 +10,7 @@ from typing import List
 
 import urllib3
 
-__version__ = "2.0.0"
+__version__ = "2.0.1"
 
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
