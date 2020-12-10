@@ -201,7 +201,7 @@ def get_ansible_helm(path, additional_vars=None, enable_prereleases=False):
             if item.get(task_name):
                 with_items = item.get('with_items')
 
-                if additional_vars and isinstance(with_items , str):
+                if additional_vars and isinstance(with_items, str):
                     search = re.sub(r'[^\w]', '', with_items)
                     with_items = additional_vars.get(search)
 
