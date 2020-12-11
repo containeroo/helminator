@@ -54,7 +54,7 @@ templates = Templates(
                 "| :-- | :-- | :-- |\n"
                 "{FILE_PATH} | {CHART_NAME} | `{OLD_VERSION}` -> `{NEW_VERSION}`",
     chart_version="chart_version: {VERSION}",
-    slack_notification="{LINK}{CHART_NAME}: `{OLD_VERSION}` -&gt; `{NEW_VERSION}`",
+    slack_notification="{LINK_START}{CHART_NAME}: `{OLD_VERSION}` -&gt; `{NEW_VERSION}`{LINK_END}",
 )
 
 
@@ -891,11 +891,13 @@ def main():
             logging.critical(f"unable to update gitlab. {str(e)}")
 
     if env_vars.slack_token and chart_updates:
+        has_link = chart.get('mr_link')
         text = [f"The following chart update{'s are' if len(chart_updates) > 1 else ' is'} available:"]
-        text.extend([templates.slack_notification.format(LINK=f"{chart['mr_link']}|" if chart.get('mr_link') else "",
+        text.extend([templates.slack_notification.format(LINK_START=f"<{chart['mr_link']}|" if has_link else "",
                                                          CHART_NAME=chart['name'],
                                                          OLD_VERSION=chart['old_version'],
-                                                         NEW_VERSION=f"{chart['new_version']}>" if chart.get('mr_link') else chart['new_version'])
+                                                         NEW_VERSION=f"{chart['new_version']}" if has_link else chart['new_version'],
+                                                         LINK_END=">" if has_link else "")
                                                          for chart in chart_updates])
         text = '\n'.join(text)
 
