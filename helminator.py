@@ -891,13 +891,13 @@ def main():
             logging.critical(f"unable to update gitlab. {str(e)}")
 
     if env_vars.slack_token and chart_updates:
-        has_link = chart.get('mr_link')
+        chart_has_link = chart.get('mr_link')
         text = [f"The following chart update{'s are' if len(chart_updates) > 1 else ' is'} available:"]
-        text.extend([templates.slack_notification.format(LINK_START=f"<{chart['mr_link']}|" if has_link else "",
+        text.extend([templates.slack_notification.format(LINK_START=f"<{chart['mr_link']}|" if chart_has_link else "",
                                                          CHART_NAME=chart['name'],
                                                          OLD_VERSION=chart['old_version'],
-                                                         NEW_VERSION=f"{chart['new_version']}" if has_link else chart['new_version'],
-                                                         LINK_END=">" if has_link else "")
+                                                         NEW_VERSION=f"{chart['new_version']}" if chart_has_link else chart['new_version'],
+                                                         LINK_END=">" if chart_has_link else "")
                                                          for chart in chart_updates])
         text = '\n'.join(text)
 
