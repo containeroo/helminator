@@ -1,5 +1,14 @@
 # Changelog
 
+## [v2.0.2](https://github.com/containeroo/helminator/tree/v2.0.2) (2020-12-11)
+
+[All Commits](https://github.com/containeroo/helminator/compare/v2.0.1...v2.0.2)
+
+**Bug fixes:**
+
+- display hyperlink in Slack message
+- typos
+
 ## [v2.0.1](https://github.com/containeroo/helminator/tree/v2.0.1) (2020-12-11)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v1.7.1...v2.0.1)
