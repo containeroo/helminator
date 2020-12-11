@@ -42,7 +42,6 @@ try:
     from gitlab.exceptions import GitlabCreateError, GitlabGetError
     from gitlab.v4.objects import (Project, ProjectBranch, ProjectCommit,
                                    ProjectMergeRequest)
-    from requests import HTTPError
     from slack import WebClient
     from slack.errors import SlackApiError
 except Exception:
