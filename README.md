@@ -11,7 +11,7 @@
 ## Introduction
 
 Helminator scans your Ansible playbook for helm and helm_repository tasks.
-It then checks if there is an update to any of the defined Helm charts available and sends out a Slack notification.
+It then checks if there is an update to any of the defined Helm charts available. If configured, it creates a branch and merge request and/or send out a Slack notification.
 Helminator is built to run in a CI environment (e.g. GitLab CI).
 
 ## Requirements
@@ -20,7 +20,7 @@ Helminator is built to run in a CI environment (e.g. GitLab CI).
 - [Ansible Kubernetes Community collection](https://github.com/ansible-collections/community.kubernetes)
 - Kubernetes Cluster
 - GitLab
-- Slack App
+- Slack App (optional)
 
 ## Configration
 
@@ -28,14 +28,23 @@ In the examples directory you can find an example playbook including the require
 
 Helminator takes the following environment variables:
 
-| Variable                        | Description                                         | Example                                                |
-| :------------------------------ | :-------------------------------------------------- | :----------------------------------------------------- |
-| `HELMINATOR_ROOT_DIR`           | Directory to scan                                   | `/path/to/playbook`                                    |
-| `HELMINATOR_ENABLE_PRERELEASES` | Enable pre-release processing (defaults to `false`) | `true` or `false`                                      |
-| `HELMINATOR_SLACK_API_TOKEN`    | Slack API Token                                     | `xorb-abc-def`                                         |
-| `HELMINATOR_SLACK_CHANNEL`      | Slack channel to send message to                    | `#kubernetes`                                          |
-| `HELMINATOR_LOGLEVEL`           | Set loglevel (defaults to `info`)                   | one of `critical`, `error`, `warning`, `info`, `debug` |
-| `HELMINATOR_VARS_FILE`          | path to file with extra variables                   | `/path/to/playbook/vars/main.yml`                      |
+| Variable                                 | Description                                                              | Example                                                |
+| :--------------------------------------- | :----------------------------------------------------------------------- | :----------------------------------------------------- |
+| `HELMINATOR_ANSIBLE_ROOT_DIR`            | Directory to scan (defaults to `CI_PROJECT_DIR`)                         | `ansible/`                                             |
+| `HELMINATOR_ANSIBLE_VARS_FILE`           | Path to file with extra variables                                        | `vars/main.yml`                                        |
+| `HELMINATOR_ENABLE_PRERELEASES`          | Enable pre-release processing (defaults to `false`)                      | `true` or `false`                                      |
+| `HELMINATOR_VERIFY_SSL`                  | Verify ssl certificate (defaults to `true`)                              | `true` or `false`                                      |
+| `HELMINATOR_LOGLEVEL`                    | Set loglevel (defaults to `info`)                                        | one of `critical`, `error`, `warning`, `info`, `debug` |
+| `HELMINATOR_ENABLE_MERGEREQUESTS`        | Create for each chart update a merge request (defaults to `true`)        | `true` or `false`                                      |
+| `HELMINATOR_GITLAB_TOKEN`                | Gitlab access token (more detail see below)                              | `12345678`                                             |
+| `HELMINATOR_GITLAB_REMOVE_SOURCE_BRANCH` | Delete source branch when merge request is accepted (defaults to `true`) | `true` or `false`                                      |
+| `HELMINATOR_GITLAB_SQUASH_COMMITS`       | Squash commits when merge request is accepted (defaults to `false`)      | `true` or `false`                                      |
+| `HELMINATOR_GITLAB_ASSIGNEES`            | List of name of assignees, separate by a comma                           | `user1,user2`                                          |
+| `HELMINATOR_SLACK_API_TOKEN`             | Slack API Token                                                          | `xorb-abc-def`                                         |
+| `HELMINATOR_SLACK_CHANNEL`               | Slack channel to send message to                                         | `#kubernetes`                                          |
+
+*GITLAB_TOKEN*
+*Add a user as member with role developer to a project and use his token.*
 
 ### Slack App
 
