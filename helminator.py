@@ -25,7 +25,7 @@ except Exception:
     sys.exit(1)
 
 
-__version__ = "2.0.1"
+__version__ = "2.0.2"
 
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
@@ -888,14 +888,16 @@ def main():
             logging.critical(f"unable to update gitlab. {str(e)}")
 
     if env_vars.slack_token and chart_updates:
-        mr_link = chart.get('mr_link')
         text = [f"The following chart update{'s are' if len(chart_updates) > 1 else ' is'} available:"]
-        text.extend([templates.slack_notification.format(LINK_START=f"<{mr_link}|" if mr_link else "",
-                                                         CHART_NAME=chart['name'],
-                                                         LINK_END=">" if mr_link else "",
-                                                         OLD_VERSION=chart['old_version'],
-                                                         NEW_VERSION=f"{chart['new_version']}" if mr_link else chart['new_version'])
-                                                         for chart in chart_updates])
+        for chart in chart_updates:
+            mr_link = chart.get('mr_link')
+            text.append(templates.slack_notification.format(LINK_START=f"<{mr_link} | " if mr_link else "",
+                                                            CHART_NAME=chart['name'],
+                                                            LINK_END=">" if mr_link else "",
+                                                            OLD_VERSION=chart['old_version'],
+                                                            NEW_VERSION=f"{chart['new_version']}" if mr_link else
+                                                                          chart['new_version'])
+            )
         text = '\n'.join(text)
 
         try:
