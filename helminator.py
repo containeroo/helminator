@@ -10,12 +10,28 @@ from typing import List
 
 import urllib3
 
+try:
+    import gitlab
+    import requests
+    import semver
+    import yaml
+    from gitlab import Gitlab as Gitlab_cli
+    from gitlab.exceptions import GitlabCreateError, GitlabGetError
+    from gitlab.v4.objects import (Project, ProjectBranch, ProjectCommit,
+                                   ProjectMergeRequest)
+    from slack import WebClient
+    from slack.errors import SlackApiError
+except Exception:
+    sys.stderr.write("requirements are not satisfied! see 'requirements.txt'\n")
+    sys.exit(1)
+
+
 __version__ = "2.0.1"
 
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
 
-Pattern = namedtuple("Pattern", ["with_items", "mr_title",])
+Pattern = namedtuple("Pattern", ['with_items', 'mr_title',])
 pattern = Pattern(
     with_items=re.compile(r"^{{.*\.(\w+) }}"),
     mr_title=r"^(Update {CHART_NAME} chart to )v?(\d+.\d+.\d+).*",
@@ -24,28 +40,22 @@ pattern = Pattern(
 helm_task_names = ['community.kubernetes.helm', 'helm']
 helm_repository_task_names = ['community.kubernetes.helm_repository', 'helm_repository']
 
-Templates = namedtuple("templates", ["branch_name", "merge_request_title", "description", "chart_version", "slack_notification", ])
+Templates = namedtuple("templates", ['branch_name',
+                                     'merge_request_title',
+                                     'description',
+                                     'chart_version',
+                                     'slack_notification',
+                                    ]
+)
 templates = Templates(
     branch_name="helminator/{CHART_NAME}",
     merge_request_title="Update {CHART_NAME} chart to {NEW_VERSION}",
-    description="| File | Chart | Change |\n| :-- | :-- | :-- |\n{FILE_PATH} | {CHART_NAME} | `{OLD_VERSION}` -> `{NEW_VERSION}`",
+    description="| File | Chart | Change |\n"
+                "| :-- | :-- | :-- |\n"
+                "{FILE_PATH} | {CHART_NAME} | `{OLD_VERSION}` -> `{NEW_VERSION}`",
     chart_version="chart_version: {VERSION}",
     slack_notification="{LINK}{CHART_NAME}: `{OLD_VERSION}` -&gt; `{NEW_VERSION}`",
 )
-
-try:
-    import gitlab
-    import requests
-    import semver
-    import yaml
-    from gitlab import Gitlab as Gitlab_cli
-    from gitlab.exceptions import GitlabCreateError, GitlabGetError
-    from gitlab.v4.objects import Project, ProjectBranch, ProjectCommit, ProjectMergeRequest
-    from slack import WebClient
-    from slack.errors import SlackApiError
-except Exception:
-    sys.stderr.write("requirements are not satisfied! see 'requirements.txt'\n")
-    sys.exit(1)
 
 
 def check_env_vars():
@@ -641,7 +651,7 @@ def check_merge_requests(project: Project,
 
     mr_title = re.compile(pattern=pattern.mr_title.format(CHART_NAME=chart_name),
                           flags=re.IGNORECASE)
-    Status = namedtuple("Status", ["closed", "exists", "update", "missing"])
+    Status = namedtuple("Status", ['closed', 'exists', 'update', 'missing'])
 
     mrs = project.mergerequests.list(order_by='updated_at')
     for mr in mrs:
