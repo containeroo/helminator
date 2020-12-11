@@ -17,8 +17,7 @@ try:
     import yaml
     from gitlab import Gitlab as Gitlab_cli
     from gitlab.exceptions import GitlabCreateError, GitlabGetError
-    from gitlab.v4.objects import (Project, ProjectBranch, ProjectCommit,
-                                   ProjectMergeRequest)
+    from gitlab.v4.objects import Project, ProjectBranch, ProjectCommit, ProjectMergeRequest
     from slack import WebClient
     from slack.errors import SlackApiError
 except Exception:
