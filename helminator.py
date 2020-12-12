@@ -25,7 +25,7 @@ except Exception:
     sys.exit(1)
 
 
-__version__ = "2.0.1"
+__version__ = "2.0.2"
 
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
@@ -361,7 +361,7 @@ def get_chart_updates(enable_prereleases=False, verify_ssl=True):
                     continue
                 versions = []
                 ansible_chart_version = [chart['version'] for chart in ansible_helm_charts_matching if
-                                        chart['name'] == chart_name]
+                                         chart['name'] == chart_name]
                 ansible_chart_version = ansible_chart_version[0]
                 for repo_chart in repo_charts[1]:
                     if not semver.VersionInfo.isvalid(repo_chart['version'].lstrip('v')):
@@ -370,11 +370,10 @@ def get_chart_updates(enable_prereleases=False, verify_ssl=True):
                         continue
                     version = semver.VersionInfo.parse(repo_chart['version'].lstrip('v'))
                     if version.prerelease and not enable_prereleases:
-                        logging.debug(f"skipping version '{repo_chart['version']}' of helm chart '{repo_chart['name']}' "
-                                    f"because it is a pre-release")
+                        logging.debug(f"skipping version '{repo_chart['version']}' of helm chart "
+                                      f"'{repo_chart['name']}' because it is a pre-release")
                         continue
-                    logging.debug(f"found version '{repo_chart['version']}' of "
-                                f"helm chart '{repo_chart['name']}'")
+                    logging.debug(f"found version '{repo_chart['version']}' of helm chart '{repo_chart['name']}'")
                     versions.extend([repo_chart['version']])
 
                 clean_versions = [version.lstrip('v') for version in versions]
@@ -391,10 +390,10 @@ def get_chart_updates(enable_prereleases=False, verify_ssl=True):
                     }
                     chart_updates.append(repo_chart)
                     logging.info(f"found update for helm chart '{repo_chart['name']}': "
-                                f"'{ansible_chart_version}' to '{latest_version[0]}'")
+                                 f"'{ansible_chart_version}' to '{latest_version[0]}'")
                     continue
                 logging.debug(f"no update found for helm chart '{repo_charts[0]}'. "
-                            f"current version in ansible helm task is '{ansible_chart_version}'")
+                              f"current version in ansible helm task is '{ansible_chart_version}'")
 
 
 def get_assignee_ids(cli: Gitlab_cli, assignees: List[str]) -> List[int]:
@@ -541,13 +540,13 @@ def update_project(project: Project,
 
         try:
             mr = create_merge_request(project=project,
-                                     branch_name=branch_name,
-                                     description=description,
-                                     title=mergerequest_title,
-                                     remove_source_branch=remove_source_branch,
-                                     squash=squash,
-                                     assignee_ids=assignee_ids,
-                                     labels=["helminator"])
+                                      branch_name=branch_name,
+                                      description=description,
+                                      title=mergerequest_title,
+                                      remove_source_branch=remove_source_branch,
+                                      squash=squash,
+                                      assignee_ids=assignee_ids,
+                                      labels=["helminator"])
         except Exception as e:
             raise Exception(f"unable to create merge request. {str(e)}")
 
@@ -711,8 +710,7 @@ def create_merge_request(project: Project,
     try:
         project.branches.get(branch_name)  # check if branch exists
     except GitlabGetError:
-        raise LookupError(f"branch '{branch_name}' not found. to create a "
-                           "merge request, you need a branch!")
+        raise LookupError(f"branch '{branch_name}' not found. to create a merge request, you need a branch!")
     except:
         raise
 
@@ -890,14 +888,16 @@ def main():
             logging.critical(f"unable to update gitlab. {str(e)}")
 
     if env_vars.slack_token and chart_updates:
-        mr_link = chart.get('mr_link')
         text = [f"The following chart update{'s are' if len(chart_updates) > 1 else ' is'} available:"]
-        text.extend([templates.slack_notification.format(LINK_START=f"<{mr_link}|" if mr_link else "",
-                                                         CHART_NAME=chart['name'],
-                                                         LINK_END=">" if mr_link else "",
-                                                         OLD_VERSION=chart['old_version'],
-                                                         NEW_VERSION=f"{chart['new_version']}" if mr_link else chart['new_version'])
-                                                         for chart in chart_updates])
+        for chart in chart_updates:
+            mr_link = chart.get('mr_link')
+            text.append(templates.slack_notification.format(LINK_START=f"<{mr_link} | " if mr_link else "",
+                                                            CHART_NAME=chart['name'],
+                                                            LINK_END=">" if mr_link else "",
+                                                            OLD_VERSION=chart['old_version'],
+                                                            NEW_VERSION=f"{chart['new_version']}" if mr_link else
+                                                                          chart['new_version'])
+            )
         text = '\n'.join(text)
 
         try:
