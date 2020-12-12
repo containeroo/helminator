@@ -25,7 +25,7 @@ except Exception:
     sys.exit(1)
 
 
-__version__ = "2.0.2"
+__version__ = "2.0.3"
 
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
@@ -667,10 +667,8 @@ def check_merge_requests(project: Project,
             logging.debug(f"merge request '{title}' already exists")
             return Status(closed=False, exists=True, update=False, missing=False)
 
-        if mr.state == "closed":  # closed mr with 'old' version
-            continue
-
-        return Status(closed=False, exists=False, update=True, missing=False)
+        if mr.state == "opened":
+            return Status(closed=False, exists=False, update=True, missing=False)
 
     return Status(closed=False, exists=False, update=False, missing=True)
 
