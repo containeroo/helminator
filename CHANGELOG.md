@@ -1,5 +1,13 @@
 # Changelog
 
+## [v2.0.3](https://github.com/containeroo/helminator/tree/v2.0.3) (2020-12-12)
+
+[All Commits](https://github.com/containeroo/helminator/compare/v2.0.2...v2.0.3)
+
+**Bug fixes:**
+
+- fix detecting existing merge requests
+
 ## [v2.0.2](https://github.com/containeroo/helminator/tree/v2.0.2) (2020-12-12)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v2.0.1...v2.0.2)
