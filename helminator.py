@@ -667,7 +667,7 @@ def check_merge_requests(project: Project,
             logging.debug(f"merge request '{title}' already exists")
             return Status(closed=False, exists=True, update=False, missing=False)
 
-        if mr.state == "opened":  # closed mr with 'old' version
+        if mr.state == "opened":
             return Status(closed=False, exists=False, update=True, missing=False)
 
     return Status(closed=False, exists=False, update=False, missing=True)
