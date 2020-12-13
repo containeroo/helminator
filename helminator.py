@@ -183,8 +183,7 @@ def process_yaml(search_dir, additional_vars=None, enable_prereleases=False):
                              additional_vars=additional_vars,
                              enable_prereleases=enable_prereleases)
         except Exception as e:
-            logging.error("unexpected exception while parsing yaml "
-                          f"'{item.absolute}'. {str(e)}")
+            logging.error(f"unexpected exception while parsing yaml '{item.absolute}'. {str(e)}")
 
 
 def get_ansible_helm(path, additional_vars=None, enable_prereleases=False):
@@ -228,13 +227,13 @@ def get_ansible_helm(path, additional_vars=None, enable_prereleases=False):
             repo_name = segments[0]
             chart_name = segments[-1]
             if not chart_version or not semver.VersionInfo.isvalid(chart_version.lstrip('v')):
-                logging.warning(f"ansible helm task '{repo_name}/{chart_name}' has"
-                                f" an invalid version '{chart_version}'")
+                logging.warning(
+                    f"ansible helm task '{repo_name}/{chart_name}' has an invalid version '{chart_version}'")
                 return
             version = semver.VersionInfo.parse(chart_version.lstrip('v'))
             if version.prerelease and not enable_prereleases:
-                logging.warning(f"skipping ansible helm task '{repo_name}/{chart_name}' with version '{chart_version}'"
-                                "because it is a pre-release")
+                logging.warning(f"skipping ansible helm task '{repo_name}/{chart_name}' with version "
+                                f"'{chart_version}' because it is a pre-release")
                 return
             chart = {
                 'name': chart_name,
@@ -265,9 +264,8 @@ def get_ansible_helm(path, additional_vars=None, enable_prereleases=False):
                         'name': _item[item_repo_name],
                         'url': _item[item_repo_url].rstrip('/')
                     }
-                    logging.debug(
-                        f"found ansible helm_repository task '{_item[item_repo_name]}' with "
-                        f"url '{_item[item_repo_url]}'")
+                    logging.debug("found ansible helm_repository task "
+                                  f"'{_item[item_repo_name]}' with url '{_item[item_repo_url]}'")
                     ansible_chart_repos.append(repo)
                 return
 
@@ -365,8 +363,8 @@ def get_chart_updates(enable_prereleases=False, verify_ssl=True):
                 ansible_chart_version = ansible_chart_version[0]
                 for repo_chart in repo_charts[1]:
                     if not semver.VersionInfo.isvalid(repo_chart['version'].lstrip('v')):
-                        logging.warning(f"helm chart '{repo_chart['name']}' has an invalid "
-                                        f"version '{repo_chart['version']}'")
+                        logging.warning(
+                            f"helm chart '{repo_chart['name']}' has an invalid "version '{repo_chart['version']}'")
                         continue
                     version = semver.VersionInfo.parse(repo_chart['version'].lstrip('v'))
                     if version.prerelease and not enable_prereleases:
@@ -400,11 +398,11 @@ def get_assignee_ids(cli: Gitlab_cli, assignees: List[str]) -> List[int]:
     """search assignees with name and get their id
 
     Args:
-        cli (gitlab.Gitlab): gitlab cli object
+        cli (gitlab.Gitlab): GitLab server connection object
         assignees (List[str]): list of assignees with their names
 
     Raises:
-        TypeError: cli is not of type gitlab.Gitlab.cli
+        TypeError: cli is not of type gitlab.Gitlab
 
     Returns:
         List[int]: list of assignees with their id's
@@ -430,11 +428,11 @@ def get_project(cli: Gitlab_cli, project_id: int) -> Project:
     """get gitlab project as object
 
     Args:
-        cli (gitlab.Gitlab): gitlab cli object
+        cli (gitlab.Gitlab): GitLab server connection object
         project_id (int): project id
 
     Raises:
-        TypeError: cli is not of type gitlab.Gitlab.cli
+        TypeError: cli is not of type gitlab.Gitlab
         GitlabGetError: project not found
         ConnectionError: cannot connect to gitlab project
 
@@ -506,11 +504,10 @@ def update_project(project: Project,
     if merge_request.exists:
         return
 
-    description = templates.description.format(
-                    FILE_PATH=gitlab_file_path,
-                    CHART_NAME=chart_name,
-                    OLD_VERSION=old_version,
-                    NEW_VERSION=new_version)
+    description = templates.description.format(FILE_PATH=gitlab_file_path,
+                                               CHART_NAME=chart_name,
+                                               OLD_VERSION=old_version,
+                                               NEW_VERSION=new_version)
     branch_name = templates.branch_name.format(CHART_NAME=chart_name)
 
     mr = None
@@ -519,7 +516,7 @@ def update_project(project: Project,
             mr = get_merge_request_by_name(project=project,
                                            chart_name=chart_name)
             if not mr:
-                raise LookupError("merge request not found!")
+                raise LookupError(f"merge request '{chart_name}' not found!")
 
             mr.title = mergerequest_title
             mr.description = description
