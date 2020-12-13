@@ -15,7 +15,7 @@ try:
     import requests
     import semver
     import yaml
-    from gitlab import Gitlab as Gitlab_cli
+    from gitlab import Gitlab
     from gitlab.exceptions import GitlabCreateError, GitlabGetError
     from gitlab.v4.objects import Project, ProjectBranch, ProjectCommit, ProjectMergeRequest
     from slack import WebClient
@@ -364,7 +364,7 @@ def get_chart_updates(enable_prereleases=False, verify_ssl=True):
                 for repo_chart in repo_charts[1]:
                     if not semver.VersionInfo.isvalid(repo_chart['version'].lstrip('v')):
                         logging.warning(
-                            f"helm chart '{repo_chart['name']}' has an invalid "version '{repo_chart['version']}'")
+                            f"helm chart '{repo_chart['name']}' has an invalid version '{repo_chart['version']}'")
                         continue
                     version = semver.VersionInfo.parse(repo_chart['version'].lstrip('v'))
                     if version.prerelease and not enable_prereleases:
@@ -394,7 +394,7 @@ def get_chart_updates(enable_prereleases=False, verify_ssl=True):
                               f"current version in ansible helm task is '{ansible_chart_version}'")
 
 
-def get_assignee_ids(cli: Gitlab_cli, assignees: List[str]) -> List[int]:
+def get_assignee_ids(cli: Gitlab, assignees: List[str]) -> List[int]:
     """search assignees with name and get their id
 
     Args:
@@ -424,20 +424,20 @@ def get_assignee_ids(cli: Gitlab_cli, assignees: List[str]) -> List[int]:
     return assignee_ids
 
 
-def get_project(cli: Gitlab_cli, project_id: int) -> Project:
-    """get gitlab project as object
+def get_project(cli: Gitlab, project_id: int) -> Project:
+    """get Gitlab project as object
 
     Args:
-        cli (gitlab.Gitlab): GitLab server connection object
+        cli (gitlab.Gitlab): Gitlab server connection object
         project_id (int): project id
 
     Raises:
         TypeError: cli is not of type gitlab.Gitlab
         GitlabGetError: project not found
-        ConnectionError: cannot connect to gitlab project
+        ConnectionError: cannot connect to Gitlab project
 
     Returns:
-        gitlab.v4.objects.Project: gitlab project object
+        gitlab.v4.objects.Project: Gitlab project object
     """
 
     if not isinstance(cli, gitlab.Gitlab):
@@ -462,10 +462,10 @@ def update_project(project: Project,
                    remove_source_branch: bool = False,
                    squash: bool = False,
                    assignee_ids: List[int] = []) -> ProjectMergeRequest:
-    """update file in gitlab project
+    """update a file in Gitlab project
 
     Args:
-        project (gitlab.v4.objects.Project): gitlab project object
+        project (gitlab.v4.objects.Project): Gitlab project object
         gitlab_file_path (str): path to file on gitlab
         repo_file_path (str): path to file inside repo
         chart_name (str): name of chart
@@ -482,7 +482,7 @@ def update_project(project: Project,
         Exception: unable to upload new file content
 
     Returns:
-        gitlab.v4.objects.ProjectMergeRequest: gitlab merge request object
+        gitlab.v4.objects.ProjectMergeRequest: Gitlab merge request object
     """
     global errors
     if not isinstance(project, gitlab.v4.objects.Project):
@@ -575,14 +575,14 @@ def get_merge_request_by_name(project: Project,
     """get merge request by name
 
     Args:
-        project (gitlab.v4.objects.Project): gitlab project object
+        project (gitlab.v4.objects.Project): Gitlab project object
         chart_name (str): name of chart
 
     Raises:
         TypeError: project variable is not of type 'gitlab.v4.objects.Project'
 
     Returns:
-        gitlab.v4.objects.ProjectMergeRequest: gitlab merge request object
+        gitlab.v4.objects.ProjectMergeRequest: Gitlab merge request object
     """
     if not isinstance(project, gitlab.v4.objects.Project):
         raise TypeError("you must pass an 'gitlab.v4.objects.Project' object!")
@@ -602,13 +602,13 @@ def create_branch(project: Project,
                   branch_name: str) -> ProjectBranch:
     """create a branch on gitlab
     Args:
-        project (gitlab.v4.objects.Project): gitlab project object
+        project (gitlab.v4.objects.Project): Gitlab project object
         branch_name (str): name of branch
     Raises:
         TypeError: project variable is not of type 'gitlab.v4.objects.Project'
 
     Returns:
-        gitlab.v4.objects.ProjectBranch: gitlab branch object
+        gitlab.v4.objects.ProjectBranch: Gitlab branch object
     """
     if not isinstance(project, gitlab.v4.objects.Project):
         raise TypeError("you must pass an 'gitlab.v4.objects.Project' object!")
@@ -631,7 +631,7 @@ def check_merge_requests(project: Project,
     """check if a merge request already exists
 
     Args:
-        project (gitlab.v4.objects.Project): gitlab project object
+        project (gitlab.v4.objects.Project): Gitlab project object
         title (str): title of merge request
         chart_name (str): name of chart
 
@@ -678,9 +678,9 @@ def create_merge_request(project: Project,
                          squash: bool = False,
                          assignee_ids: List[int] = [],
                          labels: List[str] = []) -> ProjectMergeRequest:
-    """create merge request on a gitlab project
+    """create merge request on a Gitlab project
     Args:
-        project (gitlab.v4.objects.Project): gitlab project object
+        project (gitlab.v4.objects.Project): Gitlab project object
         title (str): title of branch
         branch_name (str, optional): name of branch. Defaults to 'master'.
         description (str, optional): description of merge request
@@ -694,7 +694,7 @@ def create_merge_request(project: Project,
         LookupError: branch does not exist
 
     Returns:
-        gitlab.v4.objects.ProjectMergeRequest: gitlab merge request object
+        gitlab.v4.objects.ProjectMergeRequest: Gitlab merge request object
     """
     if not isinstance(project, gitlab.v4.objects.Project):
         raise TypeError("you must pass an 'gitlab.v4.objects.Project' object!")
@@ -743,12 +743,12 @@ def update_file(project: Project,
                 content: str,
                 path_to_file: str,
                 branch_name: str = 'master') -> ProjectCommit:
-    """update file on a gitlab project
+    """update file on a Gitlab project
     Args:
-        project (gitlab.v4.objects.Project): gitlab project object
+        project (gitlab.v4.objects.Project): Gitlab project object
         commit_msg (str): commit message
         content (str): file content as string
-        path_to_file (str): path to file on the gitlab project
+        path_to_file (str): path to file on the Gitlab project
         branch_name (str, optional): [description]. Defaults to 'master'.
     Raises:
         TypeError: project variable is not a type 'gitlab.v4.objects.Project'
@@ -856,7 +856,7 @@ def main():
                 project = get_project(cli=cli,
                                       project_id=env_vars.project_id)
             except Exception as e:
-                raise ConnectionError(f"cannot get gitlab project. {str(e)}")
+                raise ConnectionError(f"cannot get Gitlab project. {str(e)}")
 
             len_base = len(env_vars.search_dir) + 1
             for chart in chart_updates:
