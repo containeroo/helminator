@@ -1,5 +1,20 @@
 # Changelog
 
+## [v2.0.4](https://github.com/containeroo/helminator/tree/v2.0.4) (2020-12-XX)
+
+[All Commits](https://github.com/containeroo/helminator/compare/v2.0.3...v2.0.4)
+
+**New features:**
+
+- new variables:
+  - `HELMINATOR_GITLAB_LABELS` -> Add labels to merge request
+
+**Bug fixes:**
+
+- fix check for existing mergere request
+- fix typos
+- update docstrings
+
 ## [v2.0.3](https://github.com/containeroo/helminator/tree/v2.0.3) (2020-12-12)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v2.0.2...v2.0.3)
