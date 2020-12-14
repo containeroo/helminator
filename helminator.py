@@ -15,7 +15,7 @@ try:
     import requests
     import semver
     import yaml
-    from gitlab import Gitlab as Gitlab_cli
+    from gitlab import Gitlab
     from gitlab.exceptions import GitlabCreateError, GitlabGetError
     from gitlab.v4.objects import Project, ProjectBranch, ProjectCommit, ProjectMergeRequest
     from slack import WebClient
@@ -25,7 +25,7 @@ except Exception:
     sys.exit(1)
 
 
-__version__ = "2.0.3"
+__version__ = "2.1.0"
 
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
@@ -74,6 +74,9 @@ def check_env_vars():
     assignees = os.environ.get("HELMINATOR_GITLAB_ASSIGNEES")
     assignees = ([] if not assignees else [a.strip() for a in assignees.split(",") if a])
 
+    labels = os.environ.get("HELMINATOR_GITLAB_LABELS")
+    labels = [] if labels == "" else ["helminator"] if labels is None else [l.strip() for l in labels.split(",") if l]
+
     slack_token = os.environ.get("HELMINATOR_SLACK_API_TOKEN")
     slack_channel = os.environ.get("HELMINATOR_SLACK_CHANNEL")
 
@@ -105,6 +108,7 @@ def check_env_vars():
                                        'remove_source_branch',
                                        'squash',
                                        'assignees',
+                                       'labels',
                                        'slack_token',
                                        'slack_channel',
                                        'gitlab_url',
@@ -123,6 +127,7 @@ def check_env_vars():
         remove_source_branch=remove_source_branch,
         squash=squash,
         assignees=assignees,
+        labels=labels,
         slack_token=slack_token,
         slack_channel=slack_channel,
         gitlab_url=gitlab_url,
@@ -183,8 +188,7 @@ def process_yaml(search_dir, additional_vars=None, enable_prereleases=False):
                              additional_vars=additional_vars,
                              enable_prereleases=enable_prereleases)
         except Exception as e:
-            logging.error("unexpected exception while parsing yaml "
-                          f"'{item.absolute}'. {str(e)}")
+            logging.error(f"unexpected exception while parsing yaml '{item.absolute}'. {str(e)}")
 
 
 def get_ansible_helm(path, additional_vars=None, enable_prereleases=False):
@@ -228,13 +232,13 @@ def get_ansible_helm(path, additional_vars=None, enable_prereleases=False):
             repo_name = segments[0]
             chart_name = segments[-1]
             if not chart_version or not semver.VersionInfo.isvalid(chart_version.lstrip('v')):
-                logging.warning(f"ansible helm task '{repo_name}/{chart_name}' has"
-                                f" an invalid version '{chart_version}'")
+                logging.warning(
+                    f"ansible helm task '{repo_name}/{chart_name}' has an invalid version '{chart_version}'")
                 return
             version = semver.VersionInfo.parse(chart_version.lstrip('v'))
             if version.prerelease and not enable_prereleases:
-                logging.warning(f"skipping ansible helm task '{repo_name}/{chart_name}' with version '{chart_version}'"
-                                "because it is a pre-release")
+                logging.warning(f"skipping ansible helm task '{repo_name}/{chart_name}' with version "
+                                f"'{chart_version}' because it is a pre-release")
                 return
             chart = {
                 'name': chart_name,
@@ -265,9 +269,8 @@ def get_ansible_helm(path, additional_vars=None, enable_prereleases=False):
                         'name': _item[item_repo_name],
                         'url': _item[item_repo_url].rstrip('/')
                     }
-                    logging.debug(
-                        f"found ansible helm_repository task '{_item[item_repo_name]}' with "
-                        f"url '{_item[item_repo_url]}'")
+                    logging.debug("found ansible helm_repository task "
+                                  f"'{_item[item_repo_name]}' with url '{_item[item_repo_url]}'")
                     ansible_chart_repos.append(repo)
                 return
 
@@ -365,8 +368,8 @@ def get_chart_updates(enable_prereleases=False, verify_ssl=True):
                 ansible_chart_version = ansible_chart_version[0]
                 for repo_chart in repo_charts[1]:
                     if not semver.VersionInfo.isvalid(repo_chart['version'].lstrip('v')):
-                        logging.warning(f"helm chart '{repo_chart['name']}' has an invalid "
-                                        f"version '{repo_chart['version']}'")
+                        logging.warning(
+                            f"helm chart '{repo_chart['name']}' has an invalid version '{repo_chart['version']}'")
                         continue
                     version = semver.VersionInfo.parse(repo_chart['version'].lstrip('v'))
                     if version.prerelease and not enable_prereleases:
@@ -396,15 +399,15 @@ def get_chart_updates(enable_prereleases=False, verify_ssl=True):
                               f"current version in ansible helm task is '{ansible_chart_version}'")
 
 
-def get_assignee_ids(cli: Gitlab_cli, assignees: List[str]) -> List[int]:
+def get_assignee_ids(cli: Gitlab, assignees: List[str]) -> List[int]:
     """search assignees with name and get their id
 
     Args:
-        cli (gitlab.Gitlab): gitlab cli object
+        cli (gitlab.Gitlab): GitLab server connection object
         assignees (List[str]): list of assignees with their names
 
     Raises:
-        TypeError: cli is not of type gitlab.Gitlab.cli
+        TypeError: parameter 'cli' is not of type 'gitlab.Gitlab'
 
     Returns:
         List[int]: list of assignees with their id's
@@ -426,20 +429,20 @@ def get_assignee_ids(cli: Gitlab_cli, assignees: List[str]) -> List[int]:
     return assignee_ids
 
 
-def get_project(cli: Gitlab_cli, project_id: int) -> Project:
-    """get gitlab project as object
+def get_project(cli: Gitlab, project_id: int) -> Project:
+    """get Gitlab project as object
 
     Args:
-        cli (gitlab.Gitlab): gitlab cli object
+        cli (gitlab.Gitlab): Gitlab server connection object
         project_id (int): project id
 
     Raises:
-        TypeError: cli is not of type gitlab.Gitlab.cli
+        TypeError: parameter 'cli' is not of type 'gitlab.Gitlab'
         GitlabGetError: project not found
-        ConnectionError: cannot connect to gitlab project
+        ConnectionError: cannot connect to Gitlab project
 
     Returns:
-        gitlab.v4.objects.Project: gitlab project object
+        gitlab.v4.objects.Project: Gitlab project object
     """
 
     if not isinstance(cli, gitlab.Gitlab):
@@ -463,11 +466,16 @@ def update_project(project: Project,
                    new_version: str,
                    remove_source_branch: bool = False,
                    squash: bool = False,
-                   assignee_ids: List[int] = []) -> ProjectMergeRequest:
-    """update file in gitlab project
+                   assignee_ids: List[int] = [],
+                   labels: List[str] = []) -> ProjectMergeRequest:
+    """Main function for handling branches, merge requests and version in file.
+
+    - create/update a branch
+    - create/update a merge request
+    - replace the version in a file and updates the content to a Gitlab repo
 
     Args:
-        project (gitlab.v4.objects.Project): gitlab project object
+        project (gitlab.v4.objects.Project): Gitlab project object
         gitlab_file_path (str): path to file on gitlab
         repo_file_path (str): path to file inside repo
         chart_name (str): name of chart
@@ -476,15 +484,17 @@ def update_project(project: Project,
         remove_source_branch (str, optional):. remove brunch after merge. Defaults to 'False'.
         squash (str, optional):. squash commits after merge. Defaults to 'False'.
         assignee_ids (List[int], optional): list of assignee id's to assign mr. Defaults to [].
+        labels (List[str], optional): list of labels to set. Defaults to [].
 
     Raises:
-        TypeError: project is not of type gitlab.v4.objects.Project
+        TypeError: parameter 'project' is not of type 'gitlab.v4.objects.Project'
         LookupError: branch could not be created
+        ValueError: merge request does not have all required labels!
         Exception: merge request could not be created
         Exception: unable to upload new file content
 
     Returns:
-        gitlab.v4.objects.ProjectMergeRequest: gitlab merge request object
+        gitlab.v4.objects.ProjectMergeRequest: Gitlab merge request object
     """
     global errors
     if not isinstance(project, gitlab.v4.objects.Project):
@@ -494,9 +504,9 @@ def update_project(project: Project,
                                                               NEW_VERSION=new_version)
 
     try:
-        merge_request = check_merge_requests(project=project,
-                                             title=mergerequest_title,
-                                             chart_name=chart_name)
+        merge_request = eval_merge_requests(project=project,
+                                            title=mergerequest_title,
+                                            chart_name=chart_name)
     except Exception as e:
         raise LookupError(f"unable check existing merge requests. {str(e)}")
 
@@ -506,20 +516,25 @@ def update_project(project: Project,
     if merge_request.exists:
         return
 
-    description = templates.description.format(
-                    FILE_PATH=gitlab_file_path,
-                    CHART_NAME=chart_name,
-                    OLD_VERSION=old_version,
-                    NEW_VERSION=new_version)
+    description = templates.description.format(FILE_PATH=gitlab_file_path,
+                                               CHART_NAME=chart_name,
+                                               OLD_VERSION=old_version,
+                                               NEW_VERSION=new_version)
     branch_name = templates.branch_name.format(CHART_NAME=chart_name)
 
     mr = None
     if merge_request.update:
         try:
-            mr = get_merge_request_by_name(project=project,
-                                           chart_name=chart_name)
+            mr = get_merge_request_by_title(project=project,
+                                            title=pattern.mr_title.format(CHART_NAME=chart_name),
+                                            state="opened",
+                                            sort="desc")
             if not mr:
-                raise LookupError("merge request not found!")
+                raise LookupError(f"merge request '{chart_name}' not found!")
+
+            mr = mr[0]  # get newest mr
+            if labels and not all(label for label in labels if label in mr.labels):
+                raise ValueError("merge request does not have all required labels!")
 
             mr.title = mergerequest_title
             mr.description = description
@@ -546,7 +561,7 @@ def update_project(project: Project,
                                       remove_source_branch=remove_source_branch,
                                       squash=squash,
                                       assignee_ids=assignee_ids,
-                                      labels=["helminator"])
+                                      labels=labels)
         except Exception as e:
             raise Exception(f"unable to create merge request. {str(e)}")
 
@@ -573,48 +588,63 @@ def update_project(project: Project,
     return mr
 
 
-def get_merge_request_by_name(project: Project,
-                              chart_name: str) -> ProjectMergeRequest:
-    """get merge request by name
+def get_merge_request_by_title(project: Project,
+                               title: str,
+                               state: str = "all",
+                               sort: str = "desc") -> List[ProjectMergeRequest]:
+    """return list merge request by matching title (can be regex pattern)
 
     Args:
-        project (gitlab.v4.objects.Project): gitlab project object
-        chart_name (str): name of chart
+        project (gitlab.v4.objects.Project): Gitlab project object
+        title (str): name of chart. Can be regex pattern
+        state (str, optional): state of merge requests. Must be one of
+                               'all', 'merged', 'opened' or 'closed' Default to 'all'.
+        state (str, optional): sort order of merge requests. 'asc' or 'desc'. Default to "desc.
 
     Raises:
-        TypeError: project variable is not of type 'gitlab.v4.objects.Project'
+        TypeError: parameter 'project' is not of type 'gitlab.v4.objects.Project'
+        TypeError: parameter 'state' is not 'all', 'merged', 'opened' or 'closed'
+        TypeError: parameter 'sort' is not 'asc' or 'desc'
 
     Returns:
-        gitlab.v4.objects.ProjectMergeRequest: gitlab merge request object
+        gitlab.v4.objects.ProjectMergeRequest: list of Gitlab merge request objects
     """
     if not isinstance(project, gitlab.v4.objects.Project):
-        raise TypeError("you must pass an 'gitlab.v4.objects.Project' object!")
+        raise TypeError(f"parameter 'project' must be of type 'gitlab.v4.objects.Project', got '{type(project)}'")
+
+    if state not in ['all', 'merged', 'opened', 'closed']:
+        raise TypeError("parameter 'state' must be 'all', 'merged', 'opened' or 'closed'")
+
+    if sort not in ['asc', 'desc']:
+        raise TypeError("parameter 'sort' must be 'asc' or 'desc'")
 
     mrs = project.mergerequests.list(order_by='updated_at',
-                                     state='opened')
-    mr_title = re.compile(pattern=pattern.mr_title.format(CHART_NAME=chart_name),
+                                     state=state,
+                                     sort=sort)
+    mr_title = re.compile(pattern=title,
                           flags=re.IGNORECASE)
+    founds = []
     for mr in mrs:
-        if mr_title.match(mr.title) and "helminator" in mr.labels:
-            return mr
+        if mr_title.match(mr.title):
+            founds.append(mr)
 
-    return None
+    return founds
 
 
 def create_branch(project: Project,
                   branch_name: str) -> ProjectBranch:
     """create a branch on gitlab
     Args:
-        project (gitlab.v4.objects.Project): gitlab project object
+        project (gitlab.v4.objects.Project): Gitlab project object
         branch_name (str): name of branch
     Raises:
-        TypeError: project variable is not of type 'gitlab.v4.objects.Project'
+        TypeError: parameter 'project' is not of type 'gitlab.v4.objects.Project'
 
     Returns:
-        gitlab.v4.objects.ProjectBranch: gitlab branch object
+        gitlab.v4.objects.ProjectBranch: Gitlab branch object
     """
     if not isinstance(project, gitlab.v4.objects.Project):
-        raise TypeError("you must pass an 'gitlab.v4.objects.Project' object!")
+        raise TypeError(f"parameter 'project' must be of type 'gitlab.v4.objects.Project', got '{type(project)}'")
 
     branch = project.branches.create(
         {
@@ -628,24 +658,29 @@ def create_branch(project: Project,
     return branch
 
 
-def check_merge_requests(project: Project,
+def eval_merge_requests(project: Project,
                          title: str,
                          chart_name: str) -> namedtuple:
-    """check if a merge request already exists
+    """evaluate existing mergere request
 
     Args:
-        project (gitlab.v4.objects.Project): gitlab project object
-        title (str): title of merge request
+        project (gitlab.v4.objects.Project): Gitlab project object
+        title (str): title of merge request to search
         chart_name (str): name of chart
 
     Raises:
-        TypeError: project variable is not of type 'gitlab.v4.objects.Project'
+        TypeError: parameter 'project' is not of type 'gitlab.v4.objects.Project'
 
     Returns:
-        namedtuple: status of merge request
+        namedtuple: Status(closed=bool, exists=bool, update=bool, missing=bool)
+                    closed: mr with same version exists and its status is closed
+                    exists: mr with same version exists and its status is opened
+                    update: mr status is opend but mr has other version
+                    missing: none of the above conditions apply
+                    Only one of the above status can be true
     """
     if not isinstance(project, gitlab.v4.objects.Project):
-        raise TypeError("you must pass an 'gitlab.v4.objects.Project' object!")
+        raise TypeError(f"parameter 'project' must be of type 'gitlab.v4.objects.Project', got '{type(project)}'")
 
     mr_title = re.compile(pattern=pattern.mr_title.format(CHART_NAME=chart_name),
                           flags=re.IGNORECASE)
@@ -653,9 +688,6 @@ def check_merge_requests(project: Project,
 
     mrs = project.mergerequests.list(order_by='updated_at')
     for mr in mrs:
-        if "helminator" not in mr.labels:
-            continue
-
         if not mr_title.match(mr.title):
             continue
 
@@ -663,7 +695,7 @@ def check_merge_requests(project: Project,
             logging.debug(f"merge request '{title}' was closed")
             return Status(closed=True, exists=False, update=False, missing=False)
 
-        if mr.title == title:
+        if mr.state == "opened" and mr.title == title:
             logging.debug(f"merge request '{title}' already exists")
             return Status(closed=False, exists=True, update=False, missing=False)
 
@@ -681,29 +713,34 @@ def create_merge_request(project: Project,
                          squash: bool = False,
                          assignee_ids: List[int] = [],
                          labels: List[str] = []) -> ProjectMergeRequest:
-    """create merge request on a gitlab project
+    """create merge request on a Gitlab project
     Args:
-        project (gitlab.v4.objects.Project): gitlab project object
+        project (gitlab.v4.objects.Project): Gitlab project object
         title (str): title of branch
         branch_name (str, optional): name of branch. Defaults to 'master'.
         description (str, optional): description of merge request
         remove_source_branch (str, optional):. remove brunch after merge. Defaults to 'False'.
         squash (str, optional):. squash commits after merge. Defaults to 'False'.
         assignee_ids (List[int], optional): assign merge request to persons. Defaults to 'None'.
-        labels (List[str]): labels
+        labels (List[str]): labels to set
+
     Raises:
-        TypeError: project variable is not of type 'gitlab.v4.objects.Project'
-        ValueError: 'assignee_ids' must be a list of int
+        TypeError: parameter 'project' is not of type 'gitlab.v4.objects.Project'
+        TypeError: parameter 'assignee_ids' must be a list of int
+        TypeError: parameter 'labels' must be a list of strings
         LookupError: branch does not exist
 
     Returns:
-        gitlab.v4.objects.ProjectMergeRequest: gitlab merge request object
+        gitlab.v4.objects.ProjectMergeRequest: Gitlab merge request object
     """
     if not isinstance(project, gitlab.v4.objects.Project):
-        raise TypeError("you must pass an 'gitlab.v4.objects.Project' object!")
+        raise TypeError(f"parameter 'project' must be of type 'gitlab.v4.objects.Project', got '{type(project)}'")
 
     if assignee_ids and not all(isinstance(a, int) for a in assignee_ids):
-        raise ValueError("assignee_ids must be a list of int")
+        raise TypeError("parameter 'assignee_ids' must be a list of int")
+
+    if labels and not all(isinstance(l, str) for l in labels):
+        raise TypeError(f"parameter 'labels' must be a list of strings")
 
     try:
         project.branches.get(branch_name)  # check if branch exists
@@ -746,18 +783,18 @@ def update_file(project: Project,
                 content: str,
                 path_to_file: str,
                 branch_name: str = 'master') -> ProjectCommit:
-    """update file on a gitlab project
+    """update a file content on a Gitlab project
     Args:
-        project (gitlab.v4.objects.Project): gitlab project object
+        project (gitlab.v4.objects.Project): Gitlab project object
         commit_msg (str): commit message
         content (str): file content as string
-        path_to_file (str): path to file on the gitlab project
+        path_to_file (str): path to file on the Gitlab project
         branch_name (str, optional): [description]. Defaults to 'master'.
     Raises:
-        TypeError: project variable is not a type 'gitlab.v4.objects.Project'
+        TypeError: parameter 'project' is not of type 'gitlab.v4.objects.Project'
     """
     if not isinstance(project, gitlab.v4.objects.Project):
-        raise TypeError("you must pass an 'gitlab.v4.objects.Project' object!")
+        raise TypeError(f"parameter 'project' must be of type 'gitlab.v4.objects.Project', got '{type(project)}'")
 
     commited_file = project.files.get(file_path=path_to_file,
                                       ref=branch_name)
@@ -859,7 +896,7 @@ def main():
                 project = get_project(cli=cli,
                                       project_id=env_vars.project_id)
             except Exception as e:
-                raise ConnectionError(f"cannot get gitlab project. {str(e)}")
+                raise ConnectionError(f"cannot get Gitlab project. {str(e)}")
 
             len_base = len(env_vars.search_dir) + 1
             for chart in chart_updates:
@@ -875,7 +912,8 @@ def main():
                                         new_version=chart['new_version'],
                                         remove_source_branch=env_vars.remove_source_branch,
                                         squash=env_vars.squash,
-                                        assignee_ids=assignee_ids)
+                                        assignee_ids=assignee_ids,
+                                        labels=env_vars.labels)
                     if mr:
                         chart['mr_link'] = mr.web_url
                 except Exception as e:
@@ -906,6 +944,7 @@ def main():
             logging.critical(f"unable to send slack notification. {e.response['error']}")
             sys.exit(1)
 
+    logging.debug("finish processing")
     sys.exit(1 if errors else 0)  # global error testen
 
 

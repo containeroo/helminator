@@ -28,20 +28,21 @@ In the examples directory you can find an example playbook including the require
 
 Helminator takes the following environment variables:
 
-| Variable                                 | Description                                                              | Example                                                |
-| :--------------------------------------- | :----------------------------------------------------------------------- | :----------------------------------------------------- |
-| `HELMINATOR_ANSIBLE_ROOT_DIR`            | Directory to scan (defaults to `CI_PROJECT_DIR`)                         | `ansible/`                                             |
-| `HELMINATOR_ANSIBLE_VARS_FILE`           | Path to file with extra variables                                        | `vars/main.yml`                                        |
-| `HELMINATOR_ENABLE_PRERELEASES`          | Enable pre-release processing (defaults to `false`)                      | `true` or `false`                                      |
-| `HELMINATOR_VERIFY_SSL`                  | Verify ssl certificate (defaults to `true`)                              | `true` or `false`                                      |
-| `HELMINATOR_LOGLEVEL`                    | Set loglevel (defaults to `info`)                                        | one of `critical`, `error`, `warning`, `info`, `debug` |
-| `HELMINATOR_ENABLE_MERGEREQUESTS`        | Create for each chart update a merge request (defaults to `true`)        | `true` or `false`                                      |
-| `HELMINATOR_GITLAB_TOKEN`                | Gitlab access token (more detail see below)                              | `12345678`                                             |
-| `HELMINATOR_GITLAB_REMOVE_SOURCE_BRANCH` | Delete source branch when merge request is accepted (defaults to `true`) | `true` or `false`                                      |
-| `HELMINATOR_GITLAB_SQUASH_COMMITS`       | Squash commits when merge request is accepted (defaults to `false`)      | `true` or `false`                                      |
-| `HELMINATOR_GITLAB_ASSIGNEES`            | List of name of assignees, separate by a comma                           | `user1,user2`                                          |
-| `HELMINATOR_SLACK_API_TOKEN`             | Slack API Token                                                          | `xorb-abc-def`                                         |
-| `HELMINATOR_SLACK_CHANNEL`               | Slack channel to send message to                                         | `#kubernetes`                                          |
+| Variable                                 | Description                                                                                                                | Example                                                |
+| :--------------------------------------- | :------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------- |
+| `HELMINATOR_ANSIBLE_ROOT_DIR`            | Directory to scan (defaults to `CI_PROJECT_DIR`)                                                                           | `ansible/`                                             |
+| `HELMINATOR_ANSIBLE_VARS_FILE`           | Path to file with extra variables                                                                                          | `vars/main.yml`                                        |
+| `HELMINATOR_ENABLE_PRERELEASES`          | Enable pre-release processing (defaults to `false`)                                                                        | `true` or `false`                                      |
+| `HELMINATOR_VERIFY_SSL`                  | Verify ssl certificate (defaults to `true`)                                                                                | `true` or `false`                                      |
+| `HELMINATOR_LOGLEVEL`                    | Set loglevel (defaults to `info`)                                                                                          | one of `critical`, `error`, `warning`, `info`, `debug` |
+| `HELMINATOR_ENABLE_MERGEREQUESTS`        | Create for each chart update a merge request (defaults to `true`)                                                          | `true` or `false`                                      |
+| `HELMINATOR_GITLAB_TOKEN`                | Gitlab access token (more detail see below)                                                                                | `12345678`                                             |
+| `HELMINATOR_GITLAB_REMOVE_SOURCE_BRANCH` | Delete source branch when merge request is accepted (defaults to `true`)                                                   | `true` or `false`                                      |
+| `HELMINATOR_GITLAB_SQUASH_COMMITS`       | Squash commits when merge request is accepted (defaults to `false`)                                                        | `true` or `false`                                      |
+| `HELMINATOR_GITLAB_ASSIGNEES`            | List of name of assignees, separate by a comma                                                                             | `user1,user2`                                          |
+| `HELMINATOR_GITLAB_LABELS`               | List of labels to set on a merge request, separate by a comma. set it to "" for no labels (defaults to `helminator`) | `helm,update,k8s`                                      |
+| `HELMINATOR_SLACK_API_TOKEN`             | Slack API Token                                                                                                            | `xorb-abc-def`                                         |
+| `HELMINATOR_SLACK_CHANNEL`               | Slack channel to send message to                                                                                           | `#kubernetes`                                          |
 
 *GITLAB_TOKEN*
 *Add a user as member with role developer to a project and use his token.*
