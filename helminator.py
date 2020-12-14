@@ -468,11 +468,11 @@ def update_project(project: Project,
                    squash: bool = False,
                    assignee_ids: List[int] = [],
                    labels: List[str] = []) -> ProjectMergeRequest:
-    """Main function for handling branch, merge request and version in file.
+    """Main function for handling branches, merge requests and version in file.
 
     - create/update a branch
     - create/update a merge request
-    - replace the version in a file and updates the content to the Gitlab repo
+    - replace the version in a file and updates the content to a Gitlab repo
 
     Args:
         project (gitlab.v4.objects.Project): Gitlab project object
@@ -601,7 +601,7 @@ def get_merge_request_by_title(project: Project,
         gitlab.v4.objects.ProjectMergeRequest: Gitlab merge request object
     """
     if not isinstance(project, gitlab.v4.objects.Project):
-        raise TypeError("you must pass an 'gitlab.v4.objects.Project' object!")
+        raise TypeError(f"parameter 'project' must be of type 'gitlab.v4.objects.Project', got '{type(project)}'")
 
     mrs = project.mergerequests.list(order_by='updated_at',
                                      state='opened')
@@ -627,7 +627,7 @@ def create_branch(project: Project,
         gitlab.v4.objects.ProjectBranch: Gitlab branch object
     """
     if not isinstance(project, gitlab.v4.objects.Project):
-        raise TypeError("you must pass an 'gitlab.v4.objects.Project' object!")
+        raise TypeError(f"parameter 'project' must be of type 'gitlab.v4.objects.Project', got '{type(project)}'")
 
     branch = project.branches.create(
         {
@@ -666,10 +666,10 @@ def check_merge_requests(project: Project,
                     Only one of the above status can be true
     """
     if not isinstance(project, gitlab.v4.objects.Project):
-        raise TypeError("you must pass an 'gitlab.v4.objects.Project' object!")
+        raise TypeError(f"parameter 'project' must be of type 'gitlab.v4.objects.Project', got '{type(project)}'")
 
     if labels and not all(isinstance(l, str) for l in labels):
-        raise TypeError(f"labels must be a list of strings")
+        raise TypeError(f"parameter 'labels' must be a list of strings")
 
     mr_title = re.compile(pattern=pattern.mr_title.format(CHART_NAME=chart_name),
                           flags=re.IGNORECASE)
@@ -725,13 +725,13 @@ def create_merge_request(project: Project,
         gitlab.v4.objects.ProjectMergeRequest: Gitlab merge request object
     """
     if not isinstance(project, gitlab.v4.objects.Project):
-        raise TypeError("you must pass an 'gitlab.v4.objects.Project' object!")
+        raise TypeError(f"parameter 'project' must be of type 'gitlab.v4.objects.Project', got '{type(project)}'")
 
     if assignee_ids and not all(isinstance(a, int) for a in assignee_ids):
-        raise ValueError("assignee_ids must be a list of int")
+        raise ValueError("parameter 'assignee_ids' must be a list of int")
 
     if labels and not all(isinstance(l, str) for l in labels):
-        raise TypeError(f"labels must be a list of strings")
+        raise TypeError(f"parameter 'labels' must be a list of strings")
 
     try:
         project.branches.get(branch_name)  # check if branch exists
@@ -785,7 +785,7 @@ def update_file(project: Project,
         TypeError: project variable is not a type 'gitlab.v4.objects.Project'
     """
     if not isinstance(project, gitlab.v4.objects.Project):
-        raise TypeError("you must pass an 'gitlab.v4.objects.Project' object!")
+        raise TypeError(f"parameter 'project' must be of type 'gitlab.v4.objects.Project', got '{type(project)}'")
 
     commited_file = project.files.get(file_path=path_to_file,
                                       ref=branch_name)
