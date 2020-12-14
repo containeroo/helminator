@@ -504,9 +504,9 @@ def update_project(project: Project,
                                                               NEW_VERSION=new_version)
 
     try:
-        merge_request = check_merge_requests(project=project,
-                                             title=mergerequest_title,
-                                             chart_name=chart_name)
+        merge_request = eval_merge_requests(project=project,
+                                            title=mergerequest_title,
+                                            chart_name=chart_name)
     except Exception as e:
         raise LookupError(f"unable check existing merge requests. {str(e)}")
 
@@ -658,10 +658,10 @@ def create_branch(project: Project,
     return branch
 
 
-def check_merge_requests(project: Project,
+def eval_merge_requests(project: Project,
                          title: str,
                          chart_name: str) -> namedtuple:
-    """check for existing mergere request
+    """evaluate existing mergere request
 
     Args:
         project (gitlab.v4.objects.Project): Gitlab project object
