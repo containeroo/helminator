@@ -527,10 +527,13 @@ def update_project(project: Project,
     if merge_request.update:
         try:
             mr = get_merge_request_by_title(project=project,
-                                            title=pattern.mr_title.format(CHART_NAME=chart_name))
+                                            title=pattern.mr_title.format(CHART_NAME=chart_name),
+                                            state="opened",
+                                            sort="desc")
             if not mr:
                 raise LookupError(f"merge request '{chart_name}' not found!")
 
+            mr = mr[0]  # get newest mr
             if labels and not all(label for label in labels if label in mr.labels):
                 raise ValueError("merge request does not have all required labels!")
 
@@ -587,31 +590,46 @@ def update_project(project: Project,
 
 
 def get_merge_request_by_title(project: Project,
-                               title: str) -> ProjectMergeRequest:
-    """get merge request by title (can be regex pattern). first occurens will be returned
+                               title: str,
+                               state: str = "all",
+                               sort: str = "desc") -> List[ProjectMergeRequest]:
+    """return list merge request by matching title (can be regex pattern)
 
     Args:
         project (gitlab.v4.objects.Project): Gitlab project object
-        title (str): name of chart
+        title (str): name of chart. Can be regex pattern
+        state (str, optional): state of merge requests. Must be one of
+                               'all', 'merged', 'opened' or 'closed' Default to 'all'.
+        state (str, optional): sort order of merge requests. 'asc' or 'desc'. Default to "desc.
 
     Raises:
         TypeError: parameter 'project' is not of type 'gitlab.v4.objects.Project'
+        TypeError: parameter 'state' is not 'all', 'merged', 'opened' or 'closed'
+        TypeError: parameter 'sort' is not 'asc' or 'desc'
 
     Returns:
-        gitlab.v4.objects.ProjectMergeRequest: Gitlab merge request object
+        gitlab.v4.objects.ProjectMergeRequest: list of Gitlab merge request objects
     """
     if not isinstance(project, gitlab.v4.objects.Project):
         raise TypeError(f"parameter 'project' must be of type 'gitlab.v4.objects.Project', got '{type(project)}'")
 
+    if state not in ['all', 'merged', 'opened', 'closed']:
+        raise TypeError("parameter 'state' must be 'all', 'merged', 'opened' or 'closed'")
+
+    if sort not in ['asc', 'desc']:
+        raise TypeError("parameter 'sort' must be 'asc' or 'desc'")
+
     mrs = project.mergerequests.list(order_by='updated_at',
-                                     state='opened')
+                                     state=state,
+                                     sort=sort)
     mr_title = re.compile(pattern=title,
                           flags=re.IGNORECASE)
+    founds = []
     for mr in mrs:
         if mr_title.match(mr.title):
-            return mr
+            founds.append(mr)
 
-    return None
+    return founds
 
 
 def create_branch(project: Project,
