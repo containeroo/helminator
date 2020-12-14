@@ -40,7 +40,7 @@ Helminator takes the following environment variables:
 | `HELMINATOR_GITLAB_REMOVE_SOURCE_BRANCH` | Delete source branch when merge request is accepted (defaults to `true`)                                                   | `true` or `false`                                      |
 | `HELMINATOR_GITLAB_SQUASH_COMMITS`       | Squash commits when merge request is accepted (defaults to `false`)                                                        | `true` or `false`                                      |
 | `HELMINATOR_GITLAB_ASSIGNEES`            | List of name of assignees, separate by a comma                                                                             | `user1,user2`                                          |
-| `HELMINATOR_GITLAB_LABELS`               | List of labels to set/check on a merge request, separate by a comma. set it to "" for no labels (defaults to `helminator`) | `helm,update,k8s`                                      |
+| `HELMINATOR_GITLAB_LABELS`               | List of labels to set on a merge request, separate by a comma. set it to "" for no labels (defaults to `helminator`) | `helm,update,k8s`                                      |
 | `HELMINATOR_SLACK_API_TOKEN`             | Slack API Token                                                                                                            | `xorb-abc-def`                                         |
 | `HELMINATOR_SLACK_CHANNEL`               | Slack channel to send message to                                                                                           | `#kubernetes`                                          |
 
