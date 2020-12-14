@@ -484,7 +484,7 @@ def update_project(project: Project,
         remove_source_branch (str, optional):. remove brunch after merge. Defaults to 'False'.
         squash (str, optional):. squash commits after merge. Defaults to 'False'.
         assignee_ids (List[int], optional): list of assignee id's to assign mr. Defaults to [].
-        labels (List[str], optional): list of labels to set/check. Defaults to [].
+        labels (List[str], optional): list of labels to set. Defaults to [].
 
     Raises:
         TypeError: parameter 'project' is not of type 'gitlab.v4.objects.Project'
@@ -661,8 +661,7 @@ def create_branch(project: Project,
 
 def check_merge_requests(project: Project,
                          title: str,
-                         chart_name: str,
-                         labels: List[str]=[]) -> namedtuple:
+                         chart_name: str) -> namedtuple:
     """check for existing mergere request
 
     Args:
@@ -673,7 +672,6 @@ def check_merge_requests(project: Project,
 
     Raises:
         TypeError: parameter 'project' is not of type 'gitlab.v4.objects.Project'
-        TypeError: parameter 'labels' is not a list of strings
 
     Returns:
         namedtuple: Status(closed=bool, exists=bool, update=bool, missing=bool)
@@ -686,18 +684,12 @@ def check_merge_requests(project: Project,
     if not isinstance(project, gitlab.v4.objects.Project):
         raise TypeError(f"parameter 'project' must be of type 'gitlab.v4.objects.Project', got '{type(project)}'")
 
-    if labels and not all(isinstance(l, str) for l in labels):
-        raise TypeError(f"parameter 'labels' must be a list of strings")
-
     mr_title = re.compile(pattern=pattern.mr_title.format(CHART_NAME=chart_name),
                           flags=re.IGNORECASE)
     Status = namedtuple("Status", ['closed', 'exists', 'update', 'missing'])
 
     mrs = project.mergerequests.list(order_by='updated_at')
     for mr in mrs:
-        if not all(label for label in labels if label in mr.labels):
-            continue
-
         if not mr_title.match(mr.title):
             continue
 
