@@ -74,6 +74,9 @@ def check_env_vars():
     assignees = os.environ.get("HELMINATOR_GITLAB_ASSIGNEES")
     assignees = ([] if not assignees else [a.strip() for a in assignees.split(",") if a])
 
+    labels = os.environ.get("HELMINATOR_GITLAB_LABELS")
+    labels = [] if labels == "" else ["helminator"] if labels is None else [l.strip() for l in labels.split(",") if l]
+
     slack_token = os.environ.get("HELMINATOR_SLACK_API_TOKEN")
     slack_channel = os.environ.get("HELMINATOR_SLACK_CHANNEL")
 
@@ -105,6 +108,7 @@ def check_env_vars():
                                        'remove_source_branch',
                                        'squash',
                                        'assignees',
+                                       'labels',
                                        'slack_token',
                                        'slack_channel',
                                        'gitlab_url',
@@ -123,6 +127,7 @@ def check_env_vars():
         remove_source_branch=remove_source_branch,
         squash=squash,
         assignees=assignees,
+        labels=labels,
         slack_token=slack_token,
         slack_channel=slack_channel,
         gitlab_url=gitlab_url,
@@ -461,8 +466,13 @@ def update_project(project: Project,
                    new_version: str,
                    remove_source_branch: bool = False,
                    squash: bool = False,
-                   assignee_ids: List[int] = []) -> ProjectMergeRequest:
-    """update a file in Gitlab project
+                   assignee_ids: List[int] = [],
+                   labels: List[str] = []) -> ProjectMergeRequest:
+    """Main function for handling branch, merge request and version in file.
+
+    - create/update a branch
+    - create/update a merge request
+    - replace the version in a file and updates the content to the Gitlab repo
 
     Args:
         project (gitlab.v4.objects.Project): Gitlab project object
@@ -474,10 +484,12 @@ def update_project(project: Project,
         remove_source_branch (str, optional):. remove brunch after merge. Defaults to 'False'.
         squash (str, optional):. squash commits after merge. Defaults to 'False'.
         assignee_ids (List[int], optional): list of assignee id's to assign mr. Defaults to [].
+        labels (List[str], optional): list of labels to set/check. Defaults to [].
 
     Raises:
         TypeError: project is not of type gitlab.v4.objects.Project
         LookupError: branch could not be created
+        ValueError: merge request does not have all required labels!
         Exception: merge request could not be created
         Exception: unable to upload new file content
 
@@ -494,7 +506,8 @@ def update_project(project: Project,
     try:
         merge_request = check_merge_requests(project=project,
                                              title=mergerequest_title,
-                                             chart_name=chart_name)
+                                             chart_name=chart_name,
+                                             labels=labels)
     except Exception as e:
         raise LookupError(f"unable check existing merge requests. {str(e)}")
 
@@ -517,6 +530,9 @@ def update_project(project: Project,
                                            chart_name=chart_name)
             if not mr:
                 raise LookupError(f"merge request '{chart_name}' not found!")
+
+            if labels and not all(label for label in labels if label in mr.labels):
+                raise ValueError("merge request does not have all required labels!")
 
             mr.title = mergerequest_title
             mr.description = description
@@ -543,7 +559,7 @@ def update_project(project: Project,
                                       remove_source_branch=remove_source_branch,
                                       squash=squash,
                                       assignee_ids=assignee_ids,
-                                      labels=["helminator"])
+                                      labels=labels)
         except Exception as e:
             raise Exception(f"unable to create merge request. {str(e)}")
 
@@ -592,7 +608,7 @@ def get_merge_request_by_name(project: Project,
     mr_title = re.compile(pattern=pattern.mr_title.format(CHART_NAME=chart_name),
                           flags=re.IGNORECASE)
     for mr in mrs:
-        if mr_title.match(mr.title) and "helminator" in mr.labels:
+        if mr_title.match(mr.title):
             return mr
 
     return None
@@ -627,22 +643,33 @@ def create_branch(project: Project,
 
 def check_merge_requests(project: Project,
                          title: str,
-                         chart_name: str) -> namedtuple:
-    """check if a merge request already exists
+                         chart_name: str,
+                         labels: List[str]=[]) -> namedtuple:
+    """check for existing mergere request
 
     Args:
         project (gitlab.v4.objects.Project): Gitlab project object
-        title (str): title of merge request
+        title (str): title of merge request to search
         chart_name (str): name of chart
+        labels (List[str], optional): list of labels to check. Defaults to [].
 
     Raises:
         TypeError: project variable is not of type 'gitlab.v4.objects.Project'
+        TypeError: labels are not a list of labels
 
     Returns:
-        namedtuple: status of merge request
+        namedtuple: Status(closed=bool, exists=bool, update=bool, missing=bool)
+                    closed: mr with same version exists and its status is closed
+                    exists: mr with same version exists and its status is opened
+                    update: mr status is opend but mr has other version
+                    missing: none of the above conditions apply
+                    Only one of the above status can be true
     """
     if not isinstance(project, gitlab.v4.objects.Project):
         raise TypeError("you must pass an 'gitlab.v4.objects.Project' object!")
+
+    if labels and not all(isinstance(l, str) for l in labels):
+        raise TypeError(f"labels must be a list of strings")
 
     mr_title = re.compile(pattern=pattern.mr_title.format(CHART_NAME=chart_name),
                           flags=re.IGNORECASE)
@@ -650,7 +677,7 @@ def check_merge_requests(project: Project,
 
     mrs = project.mergerequests.list(order_by='updated_at')
     for mr in mrs:
-        if "helminator" not in mr.labels:
+        if not all(label for label in labels if label in mr.labels):
             continue
 
         if not mr_title.match(mr.title):
@@ -660,7 +687,7 @@ def check_merge_requests(project: Project,
             logging.debug(f"merge request '{title}' was closed")
             return Status(closed=True, exists=False, update=False, missing=False)
 
-        if mr.title == title:
+        if mr.state == "opened" and mr.title == title:
             logging.debug(f"merge request '{title}' already exists")
             return Status(closed=False, exists=True, update=False, missing=False)
 
@@ -687,7 +714,8 @@ def create_merge_request(project: Project,
         remove_source_branch (str, optional):. remove brunch after merge. Defaults to 'False'.
         squash (str, optional):. squash commits after merge. Defaults to 'False'.
         assignee_ids (List[int], optional): assign merge request to persons. Defaults to 'None'.
-        labels (List[str]): labels
+        labels (List[str]): labels to set
+
     Raises:
         TypeError: project variable is not of type 'gitlab.v4.objects.Project'
         ValueError: 'assignee_ids' must be a list of int
@@ -701,6 +729,9 @@ def create_merge_request(project: Project,
 
     if assignee_ids and not all(isinstance(a, int) for a in assignee_ids):
         raise ValueError("assignee_ids must be a list of int")
+
+    if labels and not all(isinstance(l, str) for l in labels):
+        raise TypeError(f"labels must be a list of strings")
 
     try:
         project.branches.get(branch_name)  # check if branch exists
@@ -743,7 +774,7 @@ def update_file(project: Project,
                 content: str,
                 path_to_file: str,
                 branch_name: str = 'master') -> ProjectCommit:
-    """update file on a Gitlab project
+    """update a file content on a Gitlab project
     Args:
         project (gitlab.v4.objects.Project): Gitlab project object
         commit_msg (str): commit message
@@ -872,7 +903,8 @@ def main():
                                         new_version=chart['new_version'],
                                         remove_source_branch=env_vars.remove_source_branch,
                                         squash=env_vars.squash,
-                                        assignee_ids=assignee_ids)
+                                        assignee_ids=assignee_ids,
+                                        labels=env_vars.labels)
                     if mr:
                         chart['mr_link'] = mr.web_url
                 except Exception as e:
@@ -903,6 +935,7 @@ def main():
             logging.critical(f"unable to send slack notification. {e.response['error']}")
             sys.exit(1)
 
+    logging.debug("finish processing")
     sys.exit(1 if errors else 0)  # global error testen
 
 
