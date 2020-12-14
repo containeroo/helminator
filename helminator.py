@@ -506,8 +506,7 @@ def update_project(project: Project,
     try:
         merge_request = check_merge_requests(project=project,
                                              title=mergerequest_title,
-                                             chart_name=chart_name,
-                                             labels=labels)
+                                             chart_name=chart_name)
     except Exception as e:
         raise LookupError(f"unable check existing merge requests. {str(e)}")
 
