@@ -7,7 +7,7 @@
 **New features:**
 
 - new variables:
-  - `HELMINATOR_GITLAB_LABELS` -> Add labels to merge request
+  - `HELMINATOR_GITLAB_LABELS`: Add labels to merge request
 
 **Bug fixes:**
 
