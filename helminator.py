@@ -667,7 +667,6 @@ def check_merge_requests(project: Project,
         project (gitlab.v4.objects.Project): Gitlab project object
         title (str): title of merge request to search
         chart_name (str): name of chart
-        labels (List[str], optional): list of labels to check. Defaults to [].
 
     Raises:
         TypeError: parameter 'project' is not of type 'gitlab.v4.objects.Project'
