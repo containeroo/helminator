@@ -407,7 +407,7 @@ def get_assignee_ids(cli: Gitlab, assignees: List[str]) -> List[int]:
         assignees (List[str]): list of assignees with their names
 
     Raises:
-        TypeError: cli is not of type gitlab.Gitlab
+        TypeError: parameter 'cli' is not of type 'gitlab.Gitlab'
 
     Returns:
         List[int]: list of assignees with their id's
@@ -437,7 +437,7 @@ def get_project(cli: Gitlab, project_id: int) -> Project:
         project_id (int): project id
 
     Raises:
-        TypeError: cli is not of type gitlab.Gitlab
+        TypeError: parameter 'cli' is not of type 'gitlab.Gitlab'
         GitlabGetError: project not found
         ConnectionError: cannot connect to Gitlab project
 
@@ -487,7 +487,7 @@ def update_project(project: Project,
         labels (List[str], optional): list of labels to set/check. Defaults to [].
 
     Raises:
-        TypeError: project is not of type gitlab.v4.objects.Project
+        TypeError: parameter 'project' is not of type 'gitlab.v4.objects.Project'
         LookupError: branch could not be created
         ValueError: merge request does not have all required labels!
         Exception: merge request could not be created
@@ -595,7 +595,7 @@ def get_merge_request_by_title(project: Project,
         title (str): name of chart
 
     Raises:
-        TypeError: project variable is not of type 'gitlab.v4.objects.Project'
+        TypeError: parameter 'project' is not of type 'gitlab.v4.objects.Project'
 
     Returns:
         gitlab.v4.objects.ProjectMergeRequest: Gitlab merge request object
@@ -621,7 +621,7 @@ def create_branch(project: Project,
         project (gitlab.v4.objects.Project): Gitlab project object
         branch_name (str): name of branch
     Raises:
-        TypeError: project variable is not of type 'gitlab.v4.objects.Project'
+        TypeError: parameter 'project' is not of type 'gitlab.v4.objects.Project'
 
     Returns:
         gitlab.v4.objects.ProjectBranch: Gitlab branch object
@@ -654,8 +654,8 @@ def check_merge_requests(project: Project,
         labels (List[str], optional): list of labels to check. Defaults to [].
 
     Raises:
-        TypeError: project variable is not of type 'gitlab.v4.objects.Project'
-        TypeError: labels are not a list of labels
+        TypeError: parameter 'project' is not of type 'gitlab.v4.objects.Project'
+        TypeError: parameter 'labels' is not a list of strings
 
     Returns:
         namedtuple: Status(closed=bool, exists=bool, update=bool, missing=bool)
@@ -717,8 +717,9 @@ def create_merge_request(project: Project,
         labels (List[str]): labels to set
 
     Raises:
-        TypeError: project variable is not of type 'gitlab.v4.objects.Project'
-        ValueError: 'assignee_ids' must be a list of int
+        TypeError: parameter 'project' is not of type 'gitlab.v4.objects.Project'
+        TypeError: parameter 'assignee_ids' must be a list of int
+        TypeError: parameter 'labels' must be a list of strings
         LookupError: branch does not exist
 
     Returns:
@@ -728,7 +729,7 @@ def create_merge_request(project: Project,
         raise TypeError(f"parameter 'project' must be of type 'gitlab.v4.objects.Project', got '{type(project)}'")
 
     if assignee_ids and not all(isinstance(a, int) for a in assignee_ids):
-        raise ValueError("parameter 'assignee_ids' must be a list of int")
+        raise TypeError("parameter 'assignee_ids' must be a list of int")
 
     if labels and not all(isinstance(l, str) for l in labels):
         raise TypeError(f"parameter 'labels' must be a list of strings")
@@ -782,7 +783,7 @@ def update_file(project: Project,
         path_to_file (str): path to file on the Gitlab project
         branch_name (str, optional): [description]. Defaults to 'master'.
     Raises:
-        TypeError: project variable is not a type 'gitlab.v4.objects.Project'
+        TypeError: parameter 'project' is not of type 'gitlab.v4.objects.Project'
     """
     if not isinstance(project, gitlab.v4.objects.Project):
         raise TypeError(f"parameter 'project' must be of type 'gitlab.v4.objects.Project', got '{type(project)}'")
