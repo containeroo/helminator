@@ -1,8 +1,8 @@
 # Changelog
 
-## [v2.0.4](https://github.com/containeroo/helminator/tree/v2.0.4) (2020-12-XX)
+## [v2.0.4](https://github.com/containeroo/helminator/tree/v2.1.0) (2020-12-XX)
 
-[All Commits](https://github.com/containeroo/helminator/compare/v2.0.3...v2.0.4)
+[All Commits](https://github.com/containeroo/helminator/compare/v2.0.3...v2.1.0)
 
 **New features:**
 
