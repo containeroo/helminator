@@ -526,8 +526,8 @@ def update_project(project: Project,
     mr = None
     if merge_request.update:
         try:
-            mr = get_merge_request_by_name(project=project,
-                                           chart_name=chart_name)
+            mr = get_merge_request_by_title(project=project,
+                                            title=pattern.mr_title.format(CHART_NAME=chart_name))
             if not mr:
                 raise LookupError(f"merge request '{chart_name}' not found!")
 
@@ -586,13 +586,13 @@ def update_project(project: Project,
     return mr
 
 
-def get_merge_request_by_name(project: Project,
-                              chart_name: str) -> ProjectMergeRequest:
-    """get merge request by name
+def get_merge_request_by_title(project: Project,
+                               title: str) -> ProjectMergeRequest:
+    """get merge request by title (can be regex pattern). first occurens will be returned
 
     Args:
         project (gitlab.v4.objects.Project): Gitlab project object
-        chart_name (str): name of chart
+        title (str): name of chart
 
     Raises:
         TypeError: project variable is not of type 'gitlab.v4.objects.Project'
@@ -605,7 +605,7 @@ def get_merge_request_by_name(project: Project,
 
     mrs = project.mergerequests.list(order_by='updated_at',
                                      state='opened')
-    mr_title = re.compile(pattern=pattern.mr_title.format(CHART_NAME=chart_name),
+    mr_title = re.compile(pattern=title,
                           flags=re.IGNORECASE)
     for mr in mrs:
         if mr_title.match(mr.title):
