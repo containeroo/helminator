@@ -16,7 +16,7 @@ try:
     import semver
     import yaml
     from gitlab import Gitlab
-    from gitlab.exceptions import GitlabCreateError, GitlabGetError
+    from gitlab.exceptions import GitlabCreateError, GitlabGetError, GitlabUpdateError, GitlabUploadError
     from gitlab.v4.objects import Project, ProjectBranch, ProjectCommit, ProjectMergeRequest
     from slack import WebClient
     from slack.errors import SlackApiError
@@ -489,8 +489,10 @@ def update_project(project: Project,
     Raises:
         TypeError: parameter 'project' is not of type 'gitlab.v4.objects.Project'
         LookupError: branch could not be created
-        Exception: merge request could not be created
-        Exception: unable to upload new file content
+        GitlabUpdateError: unable to update merge request
+        GitlabCreateError: unable to create branch
+        GitlabCreateError: unable to create merge request
+        GitlabUploadError: unable to upload new file content
 
     Returns:
         gitlab.v4.objects.ProjectMergeRequest: Gitlab merge request object
@@ -540,7 +542,7 @@ def update_project(project: Project,
             mr.squash = squash
             mr.save()
         except Exception as e:
-            raise Exception(f"cannot update merge request. {str(e)}")
+            raise GitlabUpdateError(f"cannot update merge request. {str(e)}")
 
     if merge_request.missing:
         try:
@@ -549,7 +551,7 @@ def update_project(project: Project,
         except GitlabCreateError as e:
            logging.debug(f"cannot create branch '{branch_name}'. {str(e.error_message)}")
         except Exception as e:
-            raise Exception(f"cannot create branch '{branch_name}'. {str(e)}")
+            raise GitlabCreateError(f"cannot create branch '{branch_name}'. {str(e)}")
 
         try:
             mr = create_merge_request(project=project,
@@ -561,7 +563,7 @@ def update_project(project: Project,
                                       assignee_ids=assignee_ids,
                                       labels=labels)
         except Exception as e:
-            raise Exception(f"unable to create merge request. {str(e)}")
+            raise GitlabCreateError(f"unable to create merge request. {str(e)}")
 
     try:
         old_chart_version = re.compile(pattern=templates.chart_version.format(VERSION=old_version),
@@ -580,8 +582,7 @@ def update_project(project: Project,
                 content=new_content,
                 path_to_file=gitlab_file_path)
     except Exception as e:
-        errors = True
-        logging.error(f"unable to upload file. {str(e)}")
+        raise GitlabUploadError(f"unable to upload file. {str(e)}")
 
     return mr
 
