@@ -915,13 +915,13 @@ def main():
                                         labels=env_vars.labels)
                 except Exception as e:
                     errors = True
-                    logging.error(f"cannot update repository. {e}")
+                    logging.error(f"cannot update chart '{chart['name']}' ('{gitlab_file_path}'). {e}")
                 finally:
                     if mr:
                         chart['mr_link'] = mr.web_url
         except Exception as e:
             errors = True
-            logging.critical(f"unable to update gitlab. {str(e)}")
+            logging.critical(e)
 
     if env_vars.slack_token and chart_updates:
         text = [f"The following chart update{'s are' if len(chart_updates) > 1 else ' is'} available:"]
