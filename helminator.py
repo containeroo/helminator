@@ -459,8 +459,8 @@ def get_project(cli: Gitlab, project_id: int) -> Project:
 
 
 def update_project(project: Project,
+                   local_file_path: str,
                    gitlab_file_path: str,
-                   repo_file_path: str,
                    chart_name: str,
                    old_version: str,
                    new_version: str,
@@ -476,8 +476,8 @@ def update_project(project: Project,
 
     Args:
         project (gitlab.v4.objects.Project): Gitlab project object
-        gitlab_file_path (str): path to file on gitlab
-        repo_file_path (str): path to file inside repo
+        local_file_path (str): path to the local file
+        gitlab_file_path (str): path to file on Gitlab
         chart_name (str): name of chart
         old_version (str): current version of chart
         new_version (str): new version of chart
@@ -569,7 +569,7 @@ def update_project(project: Project,
         old_chart_version = re.compile(pattern=templates.chart_version.format(VERSION=old_version),
                                        flags=re.IGNORECASE)
         new_chart_version = templates.chart_version.format(VERSION=new_version)
-        with open(file=repo_file_path, mode="r+") as f:
+        with open(file=local_file_path, mode="r+") as f:
             old_content = f.read()
             new_content = re.sub(pattern=old_chart_version,
                                  repl=new_chart_version,
@@ -897,16 +897,21 @@ def main():
             except Exception as e:
                 raise ConnectionError(f"cannot get Gitlab project. {str(e)}")
 
+            # the yaml path in the search_dir does not correspond to the path in the Gitlab repo
+            # exmple:
+            #  - search_dir: $CI_PROJECT_DIR
+            #  - local_file_path: $CI_PROJECT_DIR/tasks/gitlab.yaml
+            #  - gitlab_file_path: tasks/gitlab.yaml
             len_base = len(env_vars.search_dir) + 1
             for chart in chart_updates:
+                local_file_path = str(chart['yaml_path'])
                 gitlab_file_path = str(chart['yaml_path'])[len_base:]
-                repo_file_path = str(chart['yaml_path'])
 
                 mr = None
                 try:
                     mr = update_project(project=project,
+                                        local_file_path=local_file_path,
                                         gitlab_file_path=gitlab_file_path,
-                                        repo_file_path=repo_file_path,
                                         chart_name=chart['name'],
                                         old_version=chart['old_version'],
                                         new_version=chart['new_version'],
