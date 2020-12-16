@@ -902,7 +902,7 @@ def main():
             #  - search_dir: $CI_PROJECT_DIR
             #  - local_file_path: $CI_PROJECT_DIR/tasks/gitlab.yaml
             #  - gitlab_file_path: tasks/gitlab.yaml
-            len_base = len(env_vars.search_dir) + 1
+            len_base = len(env_vars.search_dir.rstrip("/")) + 1
             for chart in chart_updates:
                 local_file_path = str(chart['yaml_path'])
                 gitlab_file_path = str(chart['yaml_path'])[len_base:]
