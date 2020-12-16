@@ -1,5 +1,15 @@
 # Changelog
 
+## [v2.1.1](https://github.com/containeroo/helminator/tree/v2.1.1) (202X-XX-XX)
+
+[All Commits](https://github.com/containeroo/helminator/compare/v2.1.0...v2.1.1)
+
+**Bug fixes:**
+
+- if updating an existing merge request, labels will not be checked
+- update exceptions
+- fix merge request url
+
 ## [v2.1.0](https://github.com/containeroo/helminator/tree/v2.1.0) (2020-12-14)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v2.0.3...v2.1.0)
