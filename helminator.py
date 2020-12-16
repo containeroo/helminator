@@ -955,6 +955,10 @@ def main():
             logging.critical(f"unable to send slack notification. {e.response['error']}")
             sys.exit(1)
 
+    logging.info("{AMOUNT} chart update{PLURAL} found".format(
+        AMOUNT=f"{len(chart_updates)}" if chart_updates else "no",
+        PLURAL="s" if len(chart_updates) != 1 else "")
+    )
     logging.debug("finish processing")
     sys.exit(1 if errors else 0)  # global error testen
 
