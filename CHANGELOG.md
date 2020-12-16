@@ -4,6 +4,10 @@
 
 [All Commits](https://github.com/containeroo/helminator/compare/v2.1.0...v2.1.1)
 
+**New features:**
+
+- log amount of chart updates
+
 **Bug fixes:**
 
 - if updating an existing merge request, labels will not be checked
