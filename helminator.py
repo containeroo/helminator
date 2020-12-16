@@ -902,6 +902,7 @@ def main():
                 gitlab_file_path = str(chart['yaml_path'])[len_base:]
                 repo_file_path = str(chart['yaml_path'])
 
+                mr = None
                 try:
                     mr = update_project(project=project,
                                         gitlab_file_path=gitlab_file_path,
