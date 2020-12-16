@@ -399,26 +399,26 @@ def get_chart_updates(enable_prereleases=False, verify_ssl=True):
                               f"current version in ansible helm task is '{ansible_chart_version}'")
 
 
-def get_assignee_ids(cli: Gitlab, assignees: List[str]) -> List[int]:
+def get_assignee_ids(conn: Gitlab, assignees: List[str]) -> List[int]:
     """search assignees with name and get their id
 
     Args:
-        cli (gitlab.Gitlab): GitLab server connection object
+        conn (gitlab.Gitlab): GitLab server connection object
         assignees (List[str]): list of assignees with their names
 
     Raises:
-        TypeError: parameter 'cli' is not of type 'gitlab.Gitlab'
+        TypeError: parameter 'conn' is not of type 'gitlab.Gitlab'
 
     Returns:
         List[int]: list of assignees with their id's
     """
-    if not isinstance(cli, gitlab.Gitlab):
-        raise TypeError(f"parameter 'cli' must be of type 'gitlab.Gitlab.cli', got '{type(cli)}'")
+    if not isinstance(conn, gitlab.Gitlab):
+        raise TypeError(f"parameter 'conn' must be of type 'gitlab.Gitlab', got '{type(conn)}'")
 
     assignee_ids = []
     for assignee in assignees:
         try:
-            assignee = cli.users.list(search=assignee)
+            assignee = conn.users.list(search=assignee)
             if not assignee:
                 logging.warning("id of '{assignee}' not found")
                 continue
@@ -429,15 +429,15 @@ def get_assignee_ids(cli: Gitlab, assignees: List[str]) -> List[int]:
     return assignee_ids
 
 
-def get_project(cli: Gitlab, project_id: int) -> Project:
+def get_project(conn: Gitlab, project_id: int) -> Project:
     """get Gitlab project as object
 
     Args:
-        cli (gitlab.Gitlab): Gitlab server connection object
+        conn (gitlab.Gitlab): Gitlab server connection object
         project_id (int): project id
 
     Raises:
-        TypeError: parameter 'cli' is not of type 'gitlab.Gitlab'
+        TypeError: parameter 'conn' is not of type 'gitlab.Gitlab'
         GitlabGetError: project not found
         ConnectionError: cannot connect to Gitlab project
 
@@ -445,11 +445,11 @@ def get_project(cli: Gitlab, project_id: int) -> Project:
         gitlab.v4.objects.Project: Gitlab project object
     """
 
-    if not isinstance(cli, gitlab.Gitlab):
-        raise TypeError(f"parameter 'cli' must be of type 'gitlab.Gitlab.cli', got '{type(cli)}'")
+    if not isinstance(conn, gitlab.Gitlab):
+        raise TypeError(f"parameter 'conn' must be of type 'gitlab.Gitlab', got '{type(conn)}'")
 
     try:
-        project = cli.projects.get(project_id)
+        project = conn.projects.get(project_id)
     except GitlabGetError as e:
         raise GitlabGetError(f"project '{project_id}' not found. {e}")
     except Exception as e:
@@ -635,6 +635,7 @@ def get_merge_request_by_title(project: Project,
 def create_branch(project: Project,
                   branch_name: str) -> ProjectBranch:
     """create a branch on gitlab
+
     Args:
         project (gitlab.v4.objects.Project): Gitlab project object
         branch_name (str): name of branch
@@ -660,8 +661,8 @@ def create_branch(project: Project,
 
 
 def eval_merge_requests(project: Project,
-                         title: str,
-                         chart_name: str) -> namedtuple:
+                        title: str,
+                        chart_name: str) -> namedtuple:
     """evaluate existing mergere request
 
     Args:
@@ -715,6 +716,7 @@ def create_merge_request(project: Project,
                          assignee_ids: List[int] = [],
                          labels: List[str] = []) -> ProjectMergeRequest:
     """create merge request on a Gitlab project
+
     Args:
         project (gitlab.v4.objects.Project): Gitlab project object
         title (str): title of branch
@@ -785,6 +787,7 @@ def update_file(project: Project,
                 path_to_file: str,
                 branch_name: str = 'master') -> ProjectCommit:
     """update a file content on a Gitlab project
+
     Args:
         project (gitlab.v4.objects.Project): Gitlab project object
         commit_msg (str): commit message
@@ -880,7 +883,7 @@ def main():
     if env_vars.enable_mergerequests and chart_updates:
         try:
             try:
-                cli = gitlab.Gitlab(url=env_vars.gitlab_url,
+                conn = gitlab.Gitlab(url=env_vars.gitlab_url,
                                     private_token=env_vars.gitlab_token,
                                     ssl_verify=env_vars.verify_ssl)
             except Exception as e:
@@ -888,13 +891,13 @@ def main():
 
             try:
                 if env_vars.assignees:
-                    assignee_ids = get_assignee_ids(cli=cli,
+                    assignee_ids = get_assignee_ids(conn=conn,
                                                     assignees=env_vars.assignees)
             except Exception as e:
                 raise ConnectionError(f"unable to get assignees. {str(e)}")
 
             try:
-                project = get_project(cli=cli,
+                project = get_project(conn=conn,
                                       project_id=env_vars.project_id)
             except Exception as e:
                 raise ConnectionError(f"cannot get Gitlab project. {str(e)}")
