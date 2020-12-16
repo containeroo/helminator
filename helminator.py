@@ -913,11 +913,12 @@ def main():
                                         squash=env_vars.squash,
                                         assignee_ids=assignee_ids,
                                         labels=env_vars.labels)
-                    if mr:
-                        chart['mr_link'] = mr.web_url
                 except Exception as e:
                     errors = True
                     logging.error(f"cannot update repository. {e}")
+                finally:
+                    if mr:
+                        chart['mr_link'] = mr.web_url
         except Exception as e:
             errors = True
             logging.critical(f"unable to update gitlab. {str(e)}")
