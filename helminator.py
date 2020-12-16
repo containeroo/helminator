@@ -489,7 +489,6 @@ def update_project(project: Project,
     Raises:
         TypeError: parameter 'project' is not of type 'gitlab.v4.objects.Project'
         LookupError: branch could not be created
-        ValueError: merge request does not have all required labels!
         Exception: merge request could not be created
         Exception: unable to upload new file content
 
@@ -532,10 +531,9 @@ def update_project(project: Project,
             if not mr:
                 raise LookupError(f"merge request '{chart_name}' not found!")
 
-            mr = mr[0]  # get newest mr
-            if labels and not all(label for label in labels if label in mr.labels):
-                raise ValueError("merge request does not have all required labels!")
-
+            mr = mr[0]  # get newest merge request
+            if labels:
+                mr.labels = labels
             mr.title = mergerequest_title
             mr.description = description
             mr.remove_source_branch = remove_source_branch
