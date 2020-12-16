@@ -538,8 +538,10 @@ def update_project(project: Project,
                 mr.labels = labels
             mr.title = mergerequest_title
             mr.description = description
-            mr.remove_source_branch = remove_source_branch
-            mr.squash = squash
+            if remove_source_branch is not None:
+                mr.remove_source_branch = str(remove_source_branch).lower() == "true"
+            if squash is not None:
+                mr.squash = str(squash).lower() == "true"
             mr.save()
         except Exception as e:
             raise GitlabUpdateError(f"cannot update merge request. {str(e)}")
@@ -760,11 +762,11 @@ def create_merge_request(project: Project,
     if labels:
         mr['labels'] = labels
 
-    if remove_source_branch:
-        mr['remove_source_branch'] = remove_source_branch
+    if remove_source_branch is not None:
+        mr['remove_source_branch'] = str(remove_source_branch).lower() == "true"
 
-    if squash:
-        mr['squash'] = squash
+    if squash is not None:
+        mr['squash'] = str(squash).lower() == "true"
 
     mr = project.mergerequests.create(mr)
     if assignee_ids:
