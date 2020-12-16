@@ -30,7 +30,7 @@ __version__ = "2.1.1"
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
 
-Pattern = namedtuple("Pattern", ['with_items', 'mr_title',])
+Pattern = namedtuple("Pattern", ['with_items', 'mr_title', ])
 pattern = Pattern(
     with_items=re.compile(r"^{{.*\.(\w+) }}"),
     mr_title=r"^(Update {CHART_NAME} chart to )v?(\d+.\d+.\d+).*",
