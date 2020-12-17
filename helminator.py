@@ -153,7 +153,7 @@ def setup_logger(loglevel: str = 'info'):
     if not hasattr(logging, loglevel) and not isinstance(getattr(logging, loglevel), int):
         raise ValueError(f"loglevel '{loglevel}' is not a valid!")
 
-    loglevel = getattr(logging, loglevel)
+    loglevel = getattr(logging, loglevel).__name__.upper()
 
     default_format = logging.Formatter("%(asctime)s [%(levelname)-7.7s] %(message)s")
     debug_format = logging.Formatter("%(asctime)s [%(filename)s:%(lineno)s - %(funcName)-20s ] %(message)s")
