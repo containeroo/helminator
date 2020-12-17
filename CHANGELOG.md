@@ -1,6 +1,6 @@
 # Changelog
 
-## [v2.1.1](https://github.com/containeroo/helminator/tree/v2.1.1) (202X-XX-XX)
+## [v2.1.1](https://github.com/containeroo/helminator/tree/v2.1.1) (2020-12-17)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v2.1.0...v2.1.1)
 
