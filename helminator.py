@@ -135,7 +135,7 @@ def check_env_vars():
     )
 
 
-def setup_logger(loglevel='info'):
+def setup_logger(loglevel: str = 'info'):
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     urllib3.disable_warnings()
 
@@ -408,6 +408,7 @@ def get_assignee_ids(conn: Gitlab, assignees: List[str]) -> List[int]:
 
     Raises:
         TypeError: parameter 'conn' is not of type 'gitlab.Gitlab'
+        ConnectionError: unable to get assignees
 
     Returns:
         List[int]: list of assignees with their id's
@@ -420,11 +421,13 @@ def get_assignee_ids(conn: Gitlab, assignees: List[str]) -> List[int]:
         try:
             assignee = conn.users.list(search=assignee)
             if not assignee:
-                logging.warning("id of '{assignee}' not found")
+                logging.warning(f"id of '{assignee}' not found")
                 continue
             assignee_ids.append(assignee[0].id)
+        except GitlabGetError as e:
+            logging.error(f"cannot get id of assignee '{assignee}'")
         except Exception as e:
-            logging.error(f"cannot get id of assignee '{assignee}'. {e}")
+            raise ConnectionError(f"unable to get assignees. {str(e)}")
 
     return assignee_ids
 
@@ -451,9 +454,9 @@ def get_project(conn: Gitlab, project_id: int) -> Project:
     try:
         project = conn.projects.get(project_id)
     except GitlabGetError as e:
-        raise GitlabGetError(f"project '{project_id}' not found. {e}")
+        raise GitlabGetError(f"Project '{project_id}' not found. {e.error_message}")
     except Exception as e:
-        raise ConnectionError(f"unable to connect to gitlab. {str(e)}")
+        raise ConnectionError(f"Unable to get Gitlab project. {str(e)}")
 
     return project
 
