@@ -49,7 +49,7 @@ Templates = namedtuple("templates", ['branch_name',
 templates = Templates(
     branch_name="helminator/{CHART_NAME}",
     merge_request_title="Update {CHART_NAME} chart to {NEW_VERSION}",
-    description="| Name | CHART | File | Change |\n"
+    description="| Name | Chart | File | Change |\n"
                 "| :-- | :-- | :-- |\n"
                 "| {CHART_NAME} | {CHART_REF} | {FILE_PATH} |  `{OLD_VERSION}` -> `{NEW_VERSION}`",
     chart_version="chart_version: {VERSION}",
