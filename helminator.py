@@ -49,9 +49,9 @@ Templates = namedtuple("templates", ['branch_name',
 templates = Templates(
     branch_name="helminator/{CHART_NAME}",
     merge_request_title="Update {CHART_NAME} chart to {NEW_VERSION}",
-    description="| File | Chart | Change |\n"
+    description="| Name | CHART | File | Change |\n"
                 "| :-- | :-- | :-- |\n"
-                "{FILE_PATH} | {CHART_NAME} | `{OLD_VERSION}` -> `{NEW_VERSION}`",
+                "| {CHART_NAME} | {CHART_REF} | {FILE_PATH} |  `{OLD_VERSION}` -> `{NEW_VERSION}`",
     chart_version="chart_version: {VERSION}",
     slack_notification="{LINK_START}{CHART_NAME}{LINK_END}: `{OLD_VERSION}` -&gt; `{NEW_VERSION}`",
 )
@@ -242,6 +242,7 @@ def get_ansible_helm(path, additional_vars=None, enable_prereleases=False):
                 return
             chart = {
                 'name': chart_name,
+                'chart_ref': chart_ref,
                 'version': chart_version,
                 'repo': repo_name,
                 'yaml_path': yaml_path
@@ -387,6 +388,7 @@ def get_chart_updates(enable_prereleases=False, verify_ssl=True):
                 if semver.match(latest_version[0].lstrip('v'), f">{ansible_chart_version.lstrip('v')}"):
                     repo_chart = {
                         'name': chart_name,
+                        'chart_ref': chart['chart_ref'],
                         'old_version': ansible_chart_version,
                         'new_version': latest_version[0],
                         'yaml_path': chart['yaml_path']
@@ -465,6 +467,7 @@ def update_project(project: Project,
                    local_file_path: str,
                    gitlab_file_path: str,
                    chart_name: str,
+                   chart_ref: str,
                    old_version: str,
                    new_version: str,
                    remove_source_branch: bool = False,
@@ -482,6 +485,7 @@ def update_project(project: Project,
         local_file_path (str): path to the local file
         gitlab_file_path (str): path to file on Gitlab
         chart_name (str): name of chart
+        chart_ref (str): reference of chart
         old_version (str): current version of chart
         new_version (str): new version of chart
         remove_source_branch (str, optional):. remove brunch after merge. Defaults to 'False'.
@@ -522,6 +526,7 @@ def update_project(project: Project,
 
     description = templates.description.format(FILE_PATH=gitlab_file_path,
                                                CHART_NAME=chart_name,
+                                               CHART_REF=chart_ref,
                                                OLD_VERSION=old_version,
                                                NEW_VERSION=new_version)
     branch_name = templates.branch_name.format(CHART_NAME=chart_name)
