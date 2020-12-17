@@ -1,5 +1,24 @@
 # Changelog
 
+## [v2.1.1](https://github.com/containeroo/helminator/tree/v2.1.1) (2020-12-17)
+
+[All Commits](https://github.com/containeroo/helminator/compare/v2.1.0...v2.1.1)
+
+**New features:**
+
+- log amount of chart updates
+
+**Dependencies:**
+
+- Update requests to v2.25.1 (#48)
+
+**Bug fixes:**
+
+- if updating an existing merge request, labels will not be checked
+- update exceptions
+- fix merge request url
+- fix getting file path for Gitlab repo
+
 ## [v2.1.0](https://github.com/containeroo/helminator/tree/v2.1.0) (2020-12-14)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v2.0.3...v2.1.0)

@@ -16,7 +16,7 @@ try:
     import semver
     import yaml
     from gitlab import Gitlab
-    from gitlab.exceptions import GitlabCreateError, GitlabGetError
+    from gitlab.exceptions import GitlabCreateError, GitlabGetError, GitlabUpdateError, GitlabUploadError
     from gitlab.v4.objects import Project, ProjectBranch, ProjectCommit, ProjectMergeRequest
     from slack import WebClient
     from slack.errors import SlackApiError
@@ -25,12 +25,12 @@ except Exception:
     sys.exit(1)
 
 
-__version__ = "2.1.0"
+__version__ = "2.1.1"
 
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
 
-Pattern = namedtuple("Pattern", ['with_items', 'mr_title',])
+Pattern = namedtuple("Pattern", ['with_items', 'mr_title', ])
 pattern = Pattern(
     with_items=re.compile(r"^{{.*\.(\w+) }}"),
     mr_title=r"^(Update {CHART_NAME} chart to )v?(\d+.\d+.\d+).*",
@@ -49,9 +49,9 @@ Templates = namedtuple("templates", ['branch_name',
 templates = Templates(
     branch_name="helminator/{CHART_NAME}",
     merge_request_title="Update {CHART_NAME} chart to {NEW_VERSION}",
-    description="| File | Chart | Change |\n"
+    description="| Name | Chart | File | Change |\n"
                 "| :-- | :-- | :-- |\n"
-                "{FILE_PATH} | {CHART_NAME} | `{OLD_VERSION}` -> `{NEW_VERSION}`",
+                "| {CHART_NAME} | {CHART_REF} | {FILE_PATH} |  `{OLD_VERSION}` -> `{NEW_VERSION}`",
     chart_version="chart_version: {VERSION}",
     slack_notification="{LINK_START}{CHART_NAME}{LINK_END}: `{OLD_VERSION}` -&gt; `{NEW_VERSION}`",
 )
@@ -135,7 +135,7 @@ def check_env_vars():
     )
 
 
-def setup_logger(loglevel='info'):
+def setup_logger(loglevel: str = 'info'):
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     urllib3.disable_warnings()
 
@@ -242,6 +242,7 @@ def get_ansible_helm(path, additional_vars=None, enable_prereleases=False):
                 return
             chart = {
                 'name': chart_name,
+                'chart_ref': chart_ref,
                 'version': chart_version,
                 'repo': repo_name,
                 'yaml_path': yaml_path
@@ -387,6 +388,7 @@ def get_chart_updates(enable_prereleases=False, verify_ssl=True):
                 if semver.match(latest_version[0].lstrip('v'), f">{ansible_chart_version.lstrip('v')}"):
                     repo_chart = {
                         'name': chart_name,
+                        'chart_ref': chart['chart_ref'],
                         'old_version': ansible_chart_version,
                         'new_version': latest_version[0],
                         'yaml_path': chart['yaml_path']
@@ -399,45 +401,48 @@ def get_chart_updates(enable_prereleases=False, verify_ssl=True):
                               f"current version in ansible helm task is '{ansible_chart_version}'")
 
 
-def get_assignee_ids(cli: Gitlab, assignees: List[str]) -> List[int]:
+def get_assignee_ids(conn: Gitlab, assignees: List[str]) -> List[int]:
     """search assignees with name and get their id
 
     Args:
-        cli (gitlab.Gitlab): GitLab server connection object
+        conn (gitlab.Gitlab): GitLab server connection object
         assignees (List[str]): list of assignees with their names
 
     Raises:
-        TypeError: parameter 'cli' is not of type 'gitlab.Gitlab'
+        TypeError: parameter 'conn' is not of type 'gitlab.Gitlab'
+        ConnectionError: unable to get assignees
 
     Returns:
         List[int]: list of assignees with their id's
     """
-    if not isinstance(cli, gitlab.Gitlab):
-        raise TypeError(f"parameter 'cli' must be of type 'gitlab.Gitlab.cli', got '{type(cli)}'")
+    if not isinstance(conn, gitlab.Gitlab):
+        raise TypeError(f"parameter 'conn' must be of type 'gitlab.Gitlab', got '{type(conn)}'")
 
     assignee_ids = []
     for assignee in assignees:
         try:
-            assignee = cli.users.list(search=assignee)
+            assignee = conn.users.list(search=assignee)
             if not assignee:
-                logging.warning("id of '{assignee}' not found")
+                logging.warning(f"id of '{assignee}' not found")
                 continue
             assignee_ids.append(assignee[0].id)
+        except GitlabGetError as e:
+            logging.error(f"cannot get id of assignee '{assignee}'")
         except Exception as e:
-            logging.error(f"cannot get id of assignee '{assignee}'. {e}")
+            raise ConnectionError(f"unable to get assignees. {str(e)}")
 
     return assignee_ids
 
 
-def get_project(cli: Gitlab, project_id: int) -> Project:
+def get_project(conn: Gitlab, project_id: int) -> Project:
     """get Gitlab project as object
 
     Args:
-        cli (gitlab.Gitlab): Gitlab server connection object
+        conn (gitlab.Gitlab): Gitlab server connection object
         project_id (int): project id
 
     Raises:
-        TypeError: parameter 'cli' is not of type 'gitlab.Gitlab'
+        TypeError: parameter 'conn' is not of type 'gitlab.Gitlab'
         GitlabGetError: project not found
         ConnectionError: cannot connect to Gitlab project
 
@@ -445,23 +450,24 @@ def get_project(cli: Gitlab, project_id: int) -> Project:
         gitlab.v4.objects.Project: Gitlab project object
     """
 
-    if not isinstance(cli, gitlab.Gitlab):
-        raise TypeError(f"parameter 'cli' must be of type 'gitlab.Gitlab.cli', got '{type(cli)}'")
+    if not isinstance(conn, gitlab.Gitlab):
+        raise TypeError(f"parameter 'conn' must be of type 'gitlab.Gitlab', got '{type(conn)}'")
 
     try:
-        project = cli.projects.get(project_id)
+        project = conn.projects.get(project_id)
     except GitlabGetError as e:
-        raise GitlabGetError(f"project '{project_id}' not found. {e}")
+        raise GitlabGetError(f"Project '{project_id}' not found. {e.error_message}")
     except Exception as e:
-        raise ConnectionError(f"unable to connect to gitlab. {str(e)}")
+        raise ConnectionError(f"Unable to get Gitlab project. {str(e)}")
 
     return project
 
 
 def update_project(project: Project,
+                   local_file_path: str,
                    gitlab_file_path: str,
-                   repo_file_path: str,
                    chart_name: str,
+                   chart_ref: str,
                    old_version: str,
                    new_version: str,
                    remove_source_branch: bool = False,
@@ -476,9 +482,10 @@ def update_project(project: Project,
 
     Args:
         project (gitlab.v4.objects.Project): Gitlab project object
-        gitlab_file_path (str): path to file on gitlab
-        repo_file_path (str): path to file inside repo
+        local_file_path (str): path to the local file
+        gitlab_file_path (str): path to file on Gitlab
         chart_name (str): name of chart
+        chart_ref (str): reference of chart
         old_version (str): current version of chart
         new_version (str): new version of chart
         remove_source_branch (str, optional):. remove brunch after merge. Defaults to 'False'.
@@ -489,9 +496,10 @@ def update_project(project: Project,
     Raises:
         TypeError: parameter 'project' is not of type 'gitlab.v4.objects.Project'
         LookupError: branch could not be created
-        ValueError: merge request does not have all required labels!
-        Exception: merge request could not be created
-        Exception: unable to upload new file content
+        GitlabUpdateError: unable to update merge request
+        GitlabCreateError: unable to create branch
+        GitlabCreateError: unable to create merge request
+        GitlabUploadError: unable to upload new file content
 
     Returns:
         gitlab.v4.objects.ProjectMergeRequest: Gitlab merge request object
@@ -518,6 +526,7 @@ def update_project(project: Project,
 
     description = templates.description.format(FILE_PATH=gitlab_file_path,
                                                CHART_NAME=chart_name,
+                                               CHART_REF=chart_ref,
                                                OLD_VERSION=old_version,
                                                NEW_VERSION=new_version)
     branch_name = templates.branch_name.format(CHART_NAME=chart_name)
@@ -532,17 +541,18 @@ def update_project(project: Project,
             if not mr:
                 raise LookupError(f"merge request '{chart_name}' not found!")
 
-            mr = mr[0]  # get newest mr
-            if labels and not all(label for label in labels if label in mr.labels):
-                raise ValueError("merge request does not have all required labels!")
-
+            mr = mr[0]  # get newest merge request
+            if labels:
+                mr.labels = labels
             mr.title = mergerequest_title
             mr.description = description
-            mr.remove_source_branch = remove_source_branch
-            mr.squash = squash
+            if remove_source_branch is not None:
+                mr.remove_source_branch = str(remove_source_branch).lower() == "true"
+            if squash is not None:
+                mr.squash = str(squash).lower() == "true"
             mr.save()
         except Exception as e:
-            raise Exception(f"cannot update merge request. {str(e)}")
+            raise GitlabUpdateError(f"cannot update merge request. {str(e)}")
 
     if merge_request.missing:
         try:
@@ -551,7 +561,7 @@ def update_project(project: Project,
         except GitlabCreateError as e:
            logging.debug(f"cannot create branch '{branch_name}'. {str(e.error_message)}")
         except Exception as e:
-            raise Exception(f"cannot create branch '{branch_name}'. {str(e)}")
+            raise GitlabCreateError(f"cannot create branch '{branch_name}'. {str(e)}")
 
         try:
             mr = create_merge_request(project=project,
@@ -563,13 +573,13 @@ def update_project(project: Project,
                                       assignee_ids=assignee_ids,
                                       labels=labels)
         except Exception as e:
-            raise Exception(f"unable to create merge request. {str(e)}")
+            raise GitlabCreateError(f"unable to create merge request. {str(e)}")
 
     try:
         old_chart_version = re.compile(pattern=templates.chart_version.format(VERSION=old_version),
                                        flags=re.IGNORECASE)
         new_chart_version = templates.chart_version.format(VERSION=new_version)
-        with open(file=repo_file_path, mode="r+") as f:
+        with open(file=local_file_path, mode="r+") as f:
             old_content = f.read()
             new_content = re.sub(pattern=old_chart_version,
                                  repl=new_chart_version,
@@ -582,8 +592,7 @@ def update_project(project: Project,
                 content=new_content,
                 path_to_file=gitlab_file_path)
     except Exception as e:
-        errors = True
-        logging.error(f"unable to upload file. {str(e)}")
+        raise GitlabUploadError(f"unable to upload file. {str(e)}")
 
     return mr
 
@@ -634,6 +643,7 @@ def get_merge_request_by_title(project: Project,
 def create_branch(project: Project,
                   branch_name: str) -> ProjectBranch:
     """create a branch on gitlab
+
     Args:
         project (gitlab.v4.objects.Project): Gitlab project object
         branch_name (str): name of branch
@@ -659,8 +669,8 @@ def create_branch(project: Project,
 
 
 def eval_merge_requests(project: Project,
-                         title: str,
-                         chart_name: str) -> namedtuple:
+                        title: str,
+                        chart_name: str) -> namedtuple:
     """evaluate existing mergere request
 
     Args:
@@ -714,6 +724,7 @@ def create_merge_request(project: Project,
                          assignee_ids: List[int] = [],
                          labels: List[str] = []) -> ProjectMergeRequest:
     """create merge request on a Gitlab project
+
     Args:
         project (gitlab.v4.objects.Project): Gitlab project object
         title (str): title of branch
@@ -761,11 +772,11 @@ def create_merge_request(project: Project,
     if labels:
         mr['labels'] = labels
 
-    if remove_source_branch:
-        mr['remove_source_branch'] = remove_source_branch
+    if remove_source_branch is not None:
+        mr['remove_source_branch'] = str(remove_source_branch).lower() == "true"
 
-    if squash:
-        mr['squash'] = squash
+    if squash is not None:
+        mr['squash'] = str(squash).lower() == "true"
 
     mr = project.mergerequests.create(mr)
     if assignee_ids:
@@ -784,6 +795,7 @@ def update_file(project: Project,
                 path_to_file: str,
                 branch_name: str = 'master') -> ProjectCommit:
     """update a file content on a Gitlab project
+
     Args:
         project (gitlab.v4.objects.Project): Gitlab project object
         commit_msg (str): commit message
@@ -879,7 +891,7 @@ def main():
     if env_vars.enable_mergerequests and chart_updates:
         try:
             try:
-                cli = gitlab.Gitlab(url=env_vars.gitlab_url,
+                conn = gitlab.Gitlab(url=env_vars.gitlab_url,
                                     private_token=env_vars.gitlab_token,
                                     ssl_verify=env_vars.verify_ssl)
             except Exception as e:
@@ -887,41 +899,49 @@ def main():
 
             try:
                 if env_vars.assignees:
-                    assignee_ids = get_assignee_ids(cli=cli,
+                    assignee_ids = get_assignee_ids(conn=conn,
                                                     assignees=env_vars.assignees)
             except Exception as e:
                 raise ConnectionError(f"unable to get assignees. {str(e)}")
 
             try:
-                project = get_project(cli=cli,
+                project = get_project(conn=conn,
                                       project_id=env_vars.project_id)
             except Exception as e:
                 raise ConnectionError(f"cannot get Gitlab project. {str(e)}")
 
-            len_base = len(env_vars.search_dir) + 1
+            # the yaml path in the search_dir does not correspond to the path in the Gitlab repo
+            # exmple:
+            #  - search_dir: $CI_PROJECT_DIR
+            #  - local_file_path: $CI_PROJECT_DIR/tasks/gitlab.yaml
+            #  - gitlab_file_path: tasks/gitlab.yaml
+            len_base = len(env_vars.search_dir.rstrip("/")) + 1
             for chart in chart_updates:
+                local_file_path = str(chart['yaml_path'])
                 gitlab_file_path = str(chart['yaml_path'])[len_base:]
-                repo_file_path = str(chart['yaml_path'])
 
+                mr = None
                 try:
                     mr = update_project(project=project,
+                                        local_file_path=local_file_path,
                                         gitlab_file_path=gitlab_file_path,
-                                        repo_file_path=repo_file_path,
                                         chart_name=chart['name'],
+                                        chart_ref=chart['chart_ref'],
                                         old_version=chart['old_version'],
                                         new_version=chart['new_version'],
                                         remove_source_branch=env_vars.remove_source_branch,
                                         squash=env_vars.squash,
                                         assignee_ids=assignee_ids,
                                         labels=env_vars.labels)
-                    if mr:
-                        chart['mr_link'] = mr.web_url
                 except Exception as e:
                     errors = True
-                    logging.error(f"cannot update repository. {e}")
+                    logging.error(f"cannot update chart '{chart['name']}' ('{gitlab_file_path}'). {e}")
+                finally:
+                    if mr:
+                        chart['mr_link'] = mr.web_url
         except Exception as e:
             errors = True
-            logging.critical(f"unable to update gitlab. {str(e)}")
+            logging.critical(e)
 
     if env_vars.slack_token and chart_updates:
         text = [f"The following chart update{'s are' if len(chart_updates) > 1 else ' is'} available:"]
@@ -944,6 +964,10 @@ def main():
             logging.critical(f"unable to send slack notification. {e.response['error']}")
             sys.exit(1)
 
+    logging.info("{AMOUNT} chart update{PLURAL} found".format(
+        AMOUNT=f"{len(chart_updates)}" if chart_updates else "no",
+        PLURAL="s" if len(chart_updates) != 1 else "")
+    )
     logging.debug("finish processing")
     sys.exit(1 if errors else 0)  # global error testen
 
