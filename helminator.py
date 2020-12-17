@@ -136,24 +136,24 @@ def check_env_vars():
 
 
 def setup_logger(loglevel: str = 'info'):
-    """setup logger
-
-    Args:
-        loglevel (str, optional): loglevel to set. Defaults to 'info'.
-
-    Raises:
-        ValueError: loglevel ist not valid
-    """
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     urllib3.disable_warnings()
 
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG)
 
-    if not hasattr(logging, loglevel) and not isinstance(getattr(logging, loglevel), int):
-        raise ValueError(f"loglevel '{loglevel}' is not a valid!")
-
-    loglevel = getattr(logging, loglevel).__name__.upper()
+    if loglevel == "critical":
+        loglevel = logging.CRITICAL
+    elif loglevel == "error":
+        loglevel = logging.ERROR
+    elif loglevel == "warning":
+        loglevel = logging.WARNING
+    elif loglevel == "info":
+        loglevel = logging.INFO
+    elif loglevel == "debug":
+        loglevel = logging.DEBUG
+    else:
+        loglevel = logging.INFO
 
     default_format = logging.Formatter("%(asctime)s [%(levelname)-7.7s] %(message)s")
     debug_format = logging.Formatter("%(asctime)s [%(filename)s:%(lineno)s - %(funcName)-20s ] %(message)s")
