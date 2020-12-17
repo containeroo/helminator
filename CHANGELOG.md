@@ -8,6 +8,10 @@
 
 - log amount of chart updates
 
+**Dependencies:**
+
+- Update requests to v2.25.1 (#48)
+
 **Bug fixes:**
 
 - if updating an existing merge request, labels will not be checked
