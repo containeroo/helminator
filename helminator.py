@@ -926,6 +926,7 @@ def main():
                                         local_file_path=local_file_path,
                                         gitlab_file_path=gitlab_file_path,
                                         chart_name=chart['name'],
+                                        chart_ref=chart['chart_ref'],
                                         old_version=chart['old_version'],
                                         new_version=chart['new_version'],
                                         remove_source_branch=env_vars.remove_source_branch,
