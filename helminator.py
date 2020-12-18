@@ -25,7 +25,7 @@ except Exception:
     sys.exit(1)
 
 
-__version__ = "2.1.1"
+__version__ = "2.1.2"
 
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
@@ -50,7 +50,7 @@ templates = Templates(
     branch_name="helminator/{CHART_NAME}",
     merge_request_title="Update {CHART_NAME} chart to {NEW_VERSION}",
     description="| Name | Chart | File | Change |\n"
-                "| :-- | :-- | :-- |\n"
+                "| :-- | :-- | :-- |:-- |\n"
                 "| {CHART_NAME} | {CHART_REF} | {FILE_PATH} |  `{OLD_VERSION}` -> `{NEW_VERSION}`",
     chart_version="chart_version: {VERSION}",
     slack_notification="{LINK_START}{CHART_NAME}{LINK_END}: `{OLD_VERSION}` -&gt; `{NEW_VERSION}`",
