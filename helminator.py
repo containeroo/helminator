@@ -25,7 +25,7 @@ except Exception:
     sys.exit(1)
 
 
-__version__ = "2.1.1"
+__version__ = "2.1.2"
 
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
@@ -49,9 +49,9 @@ Templates = namedtuple("templates", ['branch_name',
 templates = Templates(
     branch_name="helminator/{CHART_NAME}",
     merge_request_title="Update {CHART_NAME} chart to {NEW_VERSION}",
-    description="| Name | Chart | File | Change |\n"
-                "| :-- | :-- | :-- |\n"
-                "| {CHART_NAME} | {CHART_REF} | {FILE_PATH} |  `{OLD_VERSION}` -> `{NEW_VERSION}`",
+    description="| Name | Chart | Change |\n"
+                "| :-- | :-- |:-- |\n"
+                "| {NAME} | {CHART_REF} | `{OLD_VERSION}` -> `{NEW_VERSION}`|",
     chart_version="chart_version: {VERSION}",
     slack_notification="{LINK_START}{CHART_NAME}{LINK_END}: `{OLD_VERSION}` -&gt; `{NEW_VERSION}`",
 )
@@ -203,7 +203,8 @@ def get_ansible_helm(path, additional_vars=None, enable_prereleases=False):
     def _parse_ansible_helm_task(item):
         for task_name in helm_task_names:
             if item.get(task_name):
-                _extract_ansible_helm_task(chart_ref=item[task_name]['chart_ref'],
+                _extract_ansible_helm_task(name=item[task_name]['name'],
+                                           chart_ref=item[task_name]['chart_ref'],
                                            chart_version=item[task_name]['chart_version'] if
                                            item[task_name].get('chart_version') else None)
 
@@ -224,7 +225,7 @@ def get_ansible_helm(path, additional_vars=None, enable_prereleases=False):
                     repo_url=item[task_name]['repo_url'],
                     with_items=with_items)
 
-    def _extract_ansible_helm_task(chart_ref, chart_version):
+    def _extract_ansible_helm_task(name, chart_ref, chart_version):
         if not any(chart for chart in ansible_helm_charts if chart == chart_ref):
             segments = chart_ref.split('/')
             if len(segments) > 2:
@@ -233,21 +234,22 @@ def get_ansible_helm(path, additional_vars=None, enable_prereleases=False):
             chart_name = segments[-1]
             if not chart_version or not semver.VersionInfo.isvalid(chart_version.lstrip('v')):
                 logging.warning(
-                    f"ansible helm task '{repo_name}/{chart_name}' has an invalid version '{chart_version}'")
+                    f"ansible helm task '{chart_ref}' has an invalid version '{chart_version}'")
                 return
             version = semver.VersionInfo.parse(chart_version.lstrip('v'))
             if version.prerelease and not enable_prereleases:
-                logging.warning(f"skipping ansible helm task '{repo_name}/{chart_name}' with version "
+                logging.warning(f"skipping ansible helm task '{chart_ref}' with version "
                                 f"'{chart_version}' because it is a pre-release")
                 return
             chart = {
-                'name': chart_name,
+                'name': name,
+                'repo': repo_name,
+                'chart_name': chart_name,
                 'chart_ref': chart_ref,
                 'version': chart_version,
-                'repo': repo_name,
                 'yaml_path': yaml_path
             }
-            logging.debug(f"found ansible helm task '{repo_name}/{chart_name}' with version '{chart_version}'")
+            logging.debug(f"found ansible helm task '{chart_ref}' with version '{chart_version}'")
             ansible_helm_charts.append(chart)
 
     def _extract_ansible_helm_repository_task(repo_name, repo_url, with_items):
@@ -361,11 +363,11 @@ def get_chart_updates(enable_prereleases=False, verify_ssl=True):
         for repo_charts in repo_charts['entries'].items():
             chart_name = repo_charts[0]
             for chart in ansible_helm_charts_matching:
-                if chart['name'] != chart_name:
+                if chart['chart_name'] != chart_name:
                     continue
                 versions = []
                 ansible_chart_version = [chart['version'] for chart in ansible_helm_charts_matching if
-                                         chart['name'] == chart_name]
+                                         chart['chart_name'] == chart_name]
                 ansible_chart_version = ansible_chart_version[0]
                 for repo_chart in repo_charts[1]:
                     if not semver.VersionInfo.isvalid(repo_chart['version'].lstrip('v')):
@@ -387,7 +389,8 @@ def get_chart_updates(enable_prereleases=False, verify_ssl=True):
 
                 if semver.match(latest_version[0].lstrip('v'), f">{ansible_chart_version.lstrip('v')}"):
                     repo_chart = {
-                        'name': chart_name,
+                        'name': chart['name'],
+                        'chart_name': chart_name,
                         'chart_ref': chart['chart_ref'],
                         'old_version': ansible_chart_version,
                         'new_version': latest_version[0],
@@ -466,6 +469,7 @@ def get_project(conn: Gitlab, project_id: int) -> Project:
 def update_project(project: Project,
                    local_file_path: str,
                    gitlab_file_path: str,
+                   name: str,
                    chart_name: str,
                    chart_ref: str,
                    old_version: str,
@@ -484,7 +488,8 @@ def update_project(project: Project,
         project (gitlab.v4.objects.Project): Gitlab project object
         local_file_path (str): path to the local file
         gitlab_file_path (str): path to file on Gitlab
-        chart_name (str): name of chart
+        name (str): name of chart
+        chart_name (str): name of chart repository
         chart_ref (str): reference of chart
         old_version (str): current version of chart
         new_version (str): new version of chart
@@ -524,8 +529,7 @@ def update_project(project: Project,
     if merge_request.exists:
         return
 
-    description = templates.description.format(FILE_PATH=gitlab_file_path,
-                                               CHART_NAME=chart_name,
+    description = templates.description.format(NAME=name,
                                                CHART_REF=chart_ref,
                                                OLD_VERSION=old_version,
                                                NEW_VERSION=new_version)
@@ -915,7 +919,7 @@ def main():
             #  - search_dir: $CI_PROJECT_DIR
             #  - local_file_path: $CI_PROJECT_DIR/tasks/gitlab.yaml
             #  - gitlab_file_path: tasks/gitlab.yaml
-            len_base = len(env_vars.search_dir.rstrip("/")) + 1
+            len_base = len(env_vars.search_dir.rstrip("/"))
             for chart in chart_updates:
                 local_file_path = str(chart['yaml_path'])
                 gitlab_file_path = str(chart['yaml_path'])[len_base:]
@@ -925,7 +929,8 @@ def main():
                     mr = update_project(project=project,
                                         local_file_path=local_file_path,
                                         gitlab_file_path=gitlab_file_path,
-                                        chart_name=chart['name'],
+                                        name=chart['name'],
+                                        chart_name=chart['chart_name'],
                                         chart_ref=chart['chart_ref'],
                                         old_version=chart['old_version'],
                                         new_version=chart['new_version'],
@@ -935,7 +940,7 @@ def main():
                                         labels=env_vars.labels)
                 except Exception as e:
                     errors = True
-                    logging.error(f"cannot update chart '{chart['name']}' ('{gitlab_file_path}'). {e}")
+                    logging.error(f"cannot update chart '{chart['chart_name']}' ('{gitlab_file_path}'). {e}")
                 finally:
                     if mr:
                         chart['mr_link'] = mr.web_url
@@ -948,7 +953,7 @@ def main():
         for chart in chart_updates:
             mr_link = chart.get('mr_link')
             text.append(templates.slack_notification.format(LINK_START=f"<{mr_link} | " if mr_link else "",
-                                                            CHART_NAME=chart['name'],
+                                                            CHART_NAME=chart['chart_name'],
                                                             LINK_END=">" if mr_link else "",
                                                             OLD_VERSION=chart['old_version'],
                                                             NEW_VERSION=f"{chart['new_version']}" if mr_link else

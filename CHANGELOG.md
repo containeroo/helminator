@@ -1,5 +1,14 @@
 # Changelog
 
+## [v2.1.2](https://github.com/containeroo/helminator/tree/v2.1.2) (2020-12-18)
+
+[All Commits](https://github.com/containeroo/helminator/compare/v2.1.1...v2.1.2)
+
+**Bug fixes:**
+
+- fix merge request description
+- fix gitlab file path evaluation
+
 ## [v2.1.1](https://github.com/containeroo/helminator/tree/v2.1.1) (2020-12-17)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v2.1.0...v2.1.1)
