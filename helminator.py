@@ -49,9 +49,9 @@ Templates = namedtuple("templates", ['branch_name',
 templates = Templates(
     branch_name="helminator/{CHART_NAME}",
     merge_request_title="Update {CHART_NAME} chart to {NEW_VERSION}",
-    description="| Name | Chart | File | Change |\n"
-                "| :-- | :-- | :-- |:-- |\n"
-                "| {NAME} | {CHART_REF} | {FILE_PATH} | `{OLD_VERSION}` -> `{NEW_VERSION}`|",
+    description="| Name | Chart | Change |\n"
+                "| :-- | :-- |:-- |\n"
+                "| {NAME} | {CHART_REF} | `{OLD_VERSION}` -> `{NEW_VERSION}`|",
     chart_version="chart_version: {VERSION}",
     slack_notification="{LINK_START}{CHART_NAME}{LINK_END}: `{OLD_VERSION}` -&gt; `{NEW_VERSION}`",
 )
@@ -531,7 +531,6 @@ def update_project(project: Project,
 
     description = templates.description.format(NAME=name,
                                                CHART_REF=chart_ref,
-                                               FILE_PATH=gitlab_file_path,
                                                OLD_VERSION=old_version,
                                                NEW_VERSION=new_version)
     branch_name = templates.branch_name.format(CHART_NAME=chart_name)
