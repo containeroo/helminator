@@ -7,6 +7,7 @@
 **Bug fixes:**
 
 - fix merge request description
+- fix gitlab file path evaluation
 
 ## [v2.1.1](https://github.com/containeroo/helminator/tree/v2.1.1) (2020-12-17)
 
