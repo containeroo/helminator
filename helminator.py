@@ -51,7 +51,7 @@ templates = Templates(
     merge_request_title="Update {CHART_NAME} chart to {NEW_VERSION}",
     description="| Name | Chart | File | Change |\n"
                 "| :-- | :-- | :-- |:-- |\n"
-                "| {NAME} | {CHART_REF} | {FILE_PATH} |  `{OLD_VERSION}` -> `{NEW_VERSION}`|",
+                "| {NAME} | {CHART_REF} | {FILE_PATH} | `{OLD_VERSION}` -> `{NEW_VERSION}`|",
     chart_version="chart_version: {VERSION}",
     slack_notification="{LINK_START}{CHART_NAME}{LINK_END}: `{OLD_VERSION}` -&gt; `{NEW_VERSION}`",
 )
