@@ -25,7 +25,7 @@ except Exception:
     sys.exit(1)
 
 
-__version__ = "2.1.2"
+__version__ = "2.1.3"
 
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
@@ -527,7 +527,7 @@ def update_project(project: Project,
         return
 
     if merge_request.exists:
-        return
+        pass # go on, maybe a file update is needed
 
     description = templates.description.format(NAME=name,
                                                CHART_REF=chart_ref,
@@ -811,6 +811,8 @@ def update_file(project: Project,
     """
     if not isinstance(project, gitlab.v4.objects.Project):
         raise TypeError(f"parameter 'project' must be of type 'gitlab.v4.objects.Project', got '{type(project)}'")
+
+    path_to_file = path_to_file.lstrip("/")
 
     commited_file = project.files.get(file_path=path_to_file,
                                       ref=branch_name)
