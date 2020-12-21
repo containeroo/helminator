@@ -25,7 +25,7 @@ except Exception:
     sys.exit(1)
 
 
-__version__ = "2.1.2"
+__version__ = "2.1.3"
 
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
@@ -527,7 +527,7 @@ def update_project(project: Project,
         return
 
     if merge_request.exists:
-        return
+        logging.debug(f"merge request '{mergerequest_title}' exist")
 
     description = templates.description.format(NAME=name,
                                                CHART_REF=chart_ref,
