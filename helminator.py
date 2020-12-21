@@ -527,7 +527,7 @@ def update_project(project: Project,
         return
 
     if merge_request.exists:
-        logging.debug(f"merge request '{mergerequest_title}' exist")
+        pass # go on, maybe a file update is needed
 
     description = templates.description.format(NAME=name,
                                                CHART_REF=chart_ref,
