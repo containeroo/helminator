@@ -812,6 +812,8 @@ def update_file(project: Project,
     if not isinstance(project, gitlab.v4.objects.Project):
         raise TypeError(f"parameter 'project' must be of type 'gitlab.v4.objects.Project', got '{type(project)}'")
 
+    path_to_file = path_to_file.lstrip("/")
+
     commited_file = project.files.get(file_path=path_to_file,
                                       ref=branch_name)
 
