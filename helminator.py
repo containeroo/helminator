@@ -25,7 +25,7 @@ except Exception:
     sys.exit(1)
 
 
-__version__ = "2.1.3"
+__version__ = "2.2.0"
 
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
@@ -51,7 +51,10 @@ templates = Templates(
     merge_request_title="Update {CHART_NAME} chart to {NEW_VERSION}",
     description="| Name | Chart | Change |\n"
                 "| :-- | :-- |:-- |\n"
-                "| {NAME} | {CHART_REF} | `{OLD_VERSION}` -> `{NEW_VERSION}`|",
+                "| {NAME} | {CHART_REF} | `{OLD_VERSION}` -> `{NEW_VERSION}`|\n"
+                "---\n"
+                "### Helminator configuration\n"
+                "{CONFIG}",
     chart_version="chart_version: {VERSION}",
     slack_notification="{LINK_START}{CHART_NAME}{LINK_END}: `{OLD_VERSION}` -&gt; `{NEW_VERSION}`",
 )
@@ -70,6 +73,7 @@ def check_env_vars():
     gitlab_token = os.environ.get("HELMINATOR_GITLAB_TOKEN")
     remove_source_branch = os.environ.get("HELMINATOR_GITLAB_REMOVE_SOURCE_BRANCH", "true").lower() == "true"
     squash = os.environ.get("HELMINATOR_GITLAB_SQUASH_COMMITS", "false").lower() == "true"
+    automerge = os.environ.get("HELMINATOR_GITLAB_AUTOMERGE", "false").lower() == "true"
 
     assignees = os.environ.get("HELMINATOR_GITLAB_ASSIGNEES")
     assignees = ([] if not assignees else [a.strip() for a in assignees.split(",") if a])
@@ -107,6 +111,7 @@ def check_env_vars():
                                        'gitlab_token',
                                        'remove_source_branch',
                                        'squash',
+                                       'automerge',
                                        'assignees',
                                        'labels',
                                        'slack_token',
@@ -126,6 +131,7 @@ def check_env_vars():
         gitlab_token=gitlab_token,
         remove_source_branch=remove_source_branch,
         squash=squash,
+        automerge=automerge,
         assignees=assignees,
         labels=labels,
         slack_token=slack_token,
@@ -476,6 +482,7 @@ def update_project(project: Project,
                    new_version: str,
                    remove_source_branch: bool = False,
                    squash: bool = False,
+                   automerge: bool = False,
                    assignee_ids: List[int] = [],
                    labels: List[str] = []) -> ProjectMergeRequest:
     """Main function for handling branches, merge requests and version in file.
@@ -493,8 +500,9 @@ def update_project(project: Project,
         chart_ref (str): reference of chart
         old_version (str): current version of chart
         new_version (str): new version of chart
-        remove_source_branch (str, optional):. remove brunch after merge. Defaults to 'False'.
-        squash (str, optional):. squash commits after merge. Defaults to 'False'.
+        remove_source_branch (bool, optional):. remove brunch after merge. Defaults to 'False'.
+        squash (bool, optional):. squash commits after merge. Defaults to 'False'.
+        automerge (bool, optional):. merge request automatically
         assignee_ids (List[int], optional): list of assignee id's to assign mr. Defaults to [].
         labels (List[str], optional): list of labels to set. Defaults to [].
 
@@ -529,10 +537,15 @@ def update_project(project: Project,
     if merge_request.exists:
         pass # go on, maybe a file update is needed
 
+    config = ("🚦 **Automerge**: Enabled by config. Merge request will merge automatically" if automerge else
+              "🚦 **Automerge**: Disabled by config. Please merge this manually once you are satisfied.  \n"
+              "🔕 **Ignore**: Close this MR and you won't be reminded about this update again.")
+
     description = templates.description.format(NAME=name,
                                                CHART_REF=chart_ref,
                                                OLD_VERSION=old_version,
-                                               NEW_VERSION=new_version)
+                                               NEW_VERSION=new_version,
+                                               CONFIG=config)
     branch_name = templates.branch_name.format(CHART_NAME=chart_name)
 
     mr = None
@@ -597,6 +610,12 @@ def update_project(project: Project,
                 path_to_file=gitlab_file_path)
     except Exception as e:
         raise GitlabUploadError(f"unable to upload file. {str(e)}")
+
+    try:
+        if automerge:
+            mr.merge()
+    except Exception as e:
+        raise Exception(f"cannot merge MR. {e}")
 
     return mr
 
@@ -938,6 +957,7 @@ def main():
                                         new_version=chart['new_version'],
                                         remove_source_branch=env_vars.remove_source_branch,
                                         squash=env_vars.squash,
+                                        automerge=env_vars.automerge,
                                         assignee_ids=assignee_ids,
                                         labels=env_vars.labels)
                 except Exception as e:
