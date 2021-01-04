@@ -630,7 +630,7 @@ def update_project(project: Project,
 
     try:
         if automerge:
-                mr.merge(merge_when_pipeline_succeeds=True)
+            mr.merge(merge_when_pipeline_succeeds=True)
     except GitlabAuthenticationError as e:
         raise GitlabAuthenticationError(
                 "Authentication not set correctly. 'Helminator' User must have the role 'Maintainer'")
