@@ -1,6 +1,6 @@
 # Changelog
 
-## [v2.2.0](https://github.com/containeroo/helminator/tree/v2.2.0) (2020-12-25)
+## [v2.2.0](https://github.com/containeroo/helminator/tree/v2.2.0) (2021-01-04)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v2.1.3...v2.2.0)
 
@@ -8,7 +8,9 @@
 
 - new variables:
   - `HELMINATOR_GITLAB_AUTOMERGE`: Accespt merge request and close it
+  - `HELMINATOR_GITLAB_MERGE_MAJOR`: Automerge also major updates
 - add more informationen in the MR description
+
 ## [v2.1.3](https://github.com/containeroo/helminator/tree/v2.1.3) (2020-12-22)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v2.1.2...v2.1.3)

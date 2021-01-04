@@ -75,6 +75,7 @@ def check_env_vars():
     remove_source_branch = os.environ.get("HELMINATOR_GITLAB_REMOVE_SOURCE_BRANCH", "true").lower() == "true"
     squash = os.environ.get("HELMINATOR_GITLAB_SQUASH_COMMITS", "false").lower() == "true"
     automerge = os.environ.get("HELMINATOR_GITLAB_AUTOMERGE", "false").lower() == "true"
+    merge_major = os.environ.get("HELMINATOR_GITLAB_MERGE_MAJOR", "false").lower() == "true"
 
     assignees = os.environ.get("HELMINATOR_GITLAB_ASSIGNEES")
     assignees = ([] if not assignees else [a.strip() for a in assignees.split(",") if a])
@@ -113,6 +114,7 @@ def check_env_vars():
                                        'remove_source_branch',
                                        'squash',
                                        'automerge',
+                                       'merge_major',
                                        'assignees',
                                        'labels',
                                        'slack_token',
@@ -133,6 +135,7 @@ def check_env_vars():
         remove_source_branch=remove_source_branch,
         squash=squash,
         automerge=automerge,
+        merge_major=merge_major,
         assignees=assignees,
         labels=labels,
         slack_token=slack_token,
@@ -484,6 +487,7 @@ def update_project(project: Project,
                    remove_source_branch: bool = False,
                    squash: bool = False,
                    automerge: bool = False,
+                   merge_major: bool = False,
                    assignee_ids: List[int] = [],
                    labels: List[str] = []) -> ProjectMergeRequest:
     """Main function for handling branches, merge requests and version in file.
@@ -504,6 +508,7 @@ def update_project(project: Project,
         remove_source_branch (bool, optional):. remove brunch after merge. Defaults to 'False'.
         squash (bool, optional):. squash commits after merge. Defaults to 'False'.
         automerge (bool, optional):. merge request automatically
+        merge_major (bool, optional):. merge also major updates
         assignee_ids (List[int], optional): list of assignee id's to assign mr. Defaults to [].
         labels (List[str], optional): list of labels to set. Defaults to [].
 
@@ -538,9 +543,20 @@ def update_project(project: Project,
     if merge_request.exists:
         pass # go on, maybe a file update is needed
 
-    config = ("🚦 **Automerge**: Enabled by config. Merge request will merge automatically" if automerge else
-              "🚦 **Automerge**: Disabled by config. Please merge this manually once you are satisfied.  \n"
-              "🔕 **Ignore**: Close this MR and you won't be reminded about this update again.")
+    is_major = (semver.VersionInfo.parse(new_version.lstrip("v")).major >
+                semver.VersionInfo.parse(old_version.lstrip("v")).major)
+
+    if not automerge:
+        config = "🚦 **Automerge**: Disabled by config. Please merge this manually once you are satisfied.  \n"
+
+    if automerge and is_major and merge_major:
+        config = "🚦 **Automerge**: Enabled by config. Merge request will merge automatically.  \n"
+
+    if automerge and is_major and not merge_major:
+        config = ("🚦 **Automerge**: Enabled by config, but disabled for major updates. "
+                  "Please merge this manually once you are satisfied.  \n")
+
+    config += "🔕 **Ignore**: Close this MR and you won't be reminded about this update again."
 
     description = templates.description.format(NAME=name,
                                                CHART_REF=chart_ref,
@@ -614,7 +630,7 @@ def update_project(project: Project,
 
     try:
         if automerge:
-            mr.merge(merge_when_pipeline_succeeds=True)
+                mr.merge(merge_when_pipeline_succeeds=True)
     except GitlabAuthenticationError as e:
         raise GitlabAuthenticationError(
                 "Authentication not set correctly. 'Helminator' User must have the role 'Maintainer'")
@@ -962,6 +978,7 @@ def main():
                                         remove_source_branch=env_vars.remove_source_branch,
                                         squash=env_vars.squash,
                                         automerge=env_vars.automerge,
+                                        merge_major=env_vars.merge_major,
                                         assignee_ids=assignee_ids,
                                         labels=env_vars.labels)
                 except Exception as e:
@@ -1000,7 +1017,7 @@ def main():
         PLURAL="s" if len(chart_updates) != 1 else "")
     )
     logging.debug("finish processing")
-    sys.exit(1 if errors else 0)  # global error testen
+    sys.exit(1 if errors else 0)
 
 
 if __name__ == "__main__":
