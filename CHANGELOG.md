@@ -7,7 +7,7 @@
 **New features:**
 
 - new variables:
-  - `HELMINATOR_GITLAB_AUTOMERGE`: Accespt merge request and close it
+  - `HELMINATOR_GITLAB_AUTOMERGE`: Accept merge request and close it
   - `HELMINATOR_GITLAB_MERGE_MAJOR`: Automerge also major updates
 - add more informationen in the MR description
 
