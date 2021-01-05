@@ -547,14 +547,14 @@ def update_project(project: Project,
                 semver.VersionInfo.parse(old_version.lstrip("v")).major)
 
     if not automerge:
-        config = "🚦 **Automerge**: Disabled by config. Please merge this manually once you are satisfied.  \n"
+        config = "🚦 **Automerge**: Disabled by config. Please merge this manually once you are satisfied.\n\n"
 
     if automerge and is_major and merge_major:
-        config = "🚦 **Automerge**: Enabled by config. Merge request will merge automatically.  \n"
+        config = "🚦 **Automerge**: Enabled by config. Merge request will merge automatically.\n\n"
 
     if automerge and is_major and not merge_major:
         config = ("🚦 **Automerge**: Enabled by config, but disabled for major updates. "
-                  "Please merge this manually once you are satisfied.  \n")
+                  "Please merge this manually once you are satisfied.\n\n")
 
     config += "🔕 **Ignore**: Close this MR and you won't be reminded about this update again."
 
