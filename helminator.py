@@ -26,7 +26,7 @@ except Exception:
     sys.exit(1)
 
 
-__version__ = "2.2.0"
+__version__ = "2.2.1"
 
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
