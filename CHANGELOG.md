@@ -1,5 +1,13 @@
 # Changelog
 
+## [v2.2.1](https://github.com/containeroo/helminator/tree/v2.2.1) (2021-01-12)
+
+[All Commits](https://github.com/containeroo/helminator/compare/v2.2.0...v2.2.1)
+
+**Bug fixes:**
+
+- fix spacing in merge request descirption
+
 ## [v2.2.0](https://github.com/containeroo/helminator/tree/v2.2.0) (2021-01-04)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v2.1.3...v2.2.0)
@@ -18,7 +26,7 @@
 **Bug fixes:**
 
 - continue processing even if a merge request exists
-- fix gitlab file path evaluation ([issue #50](https://github.com/containeroo/helminator/issues/50))
+- fix gitlab file path evaluation (#50)
 
 ## [v2.1.2](https://github.com/containeroo/helminator/tree/v2.1.2) (2020-12-18)
 

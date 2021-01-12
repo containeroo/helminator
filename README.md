@@ -3,8 +3,6 @@
 ![Docker Image Version (latest semver)](https://img.shields.io/docker/v/containeroo/helminator?style=flat-square)
 ![Docker Pulls](https://img.shields.io/docker/pulls/containeroo/helminator?style=flat-square)
 ![Docker Image Size (tag)](https://img.shields.io/docker/image-size/containeroo/helminator/latest?style=flat-square)
-![Docker Cloud Automated build](https://img.shields.io/docker/cloud/automated/containeroo/helminator?style=flat-square)
-![Docker Cloud Build Status](https://img.shields.io/docker/cloud/build/containeroo/helminator?style=flat-square)
 ![GitHub issues](https://img.shields.io/github/issues/containeroo/helminator?style=flat-square)
 ![Twitter Follow](https://img.shields.io/twitter/follow/containeroo?style=social)
 
