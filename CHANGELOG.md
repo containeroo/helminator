@@ -1,5 +1,13 @@
 # Changelog
 
+## [v2.2.2](https://github.com/containeroo/helminator/tree/v2.2.2) (2021-01-26)
+
+[All Commits](https://github.com/containeroo/helminator/compare/v2.2.1...v2.2.2)
+
+**Dependencies:**
+
+- Update pyyaml to v5.4.1 (#54)
+
 ## [v2.2.1](https://github.com/containeroo/helminator/tree/v2.2.1) (2021-01-12)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v2.2.0...v2.2.1)
