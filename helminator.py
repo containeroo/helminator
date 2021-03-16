@@ -166,7 +166,8 @@ def setup_logger(loglevel: str = 'info'):
         loglevel = logging.INFO
 
     default_format = logging.Formatter("%(asctime)s [%(levelname)-7.7s] %(message)s")
-    debug_format = logging.Formatter("%(asctime)s [%(filename)s:%(lineno)s - %(funcName)-20s ] %(message)s")
+    debug_format = logging.Formatter(
+        "%(asctime)s [%(filename)s:%(lineno)s - %(funcName)-20s ] [%(levelname)-7.7s] %(message)s")
 
     console_logger = logging.StreamHandler(sys.stdout)
     console_logger.setLevel(loglevel)
