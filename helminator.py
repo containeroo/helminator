@@ -26,7 +26,7 @@ except Exception:
     sys.exit(1)
 
 
-__version__ = "2.2.1"
+__version__ = "2.2.3"
 
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
 errors = False
@@ -166,7 +166,8 @@ def setup_logger(loglevel: str = 'info'):
         loglevel = logging.INFO
 
     default_format = logging.Formatter("%(asctime)s [%(levelname)-7.7s] %(message)s")
-    debug_format = logging.Formatter("%(asctime)s [%(filename)s:%(lineno)s - %(funcName)-20s ] %(message)s")
+    debug_format = logging.Formatter(
+        "%(asctime)s [%(filename)s:%(lineno)s - %(funcName)-20s ] [%(levelname)-7.7s] %(message)s")
 
     console_logger = logging.StreamHandler(sys.stdout)
     console_logger.setLevel(loglevel)
