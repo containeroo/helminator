@@ -1,5 +1,13 @@
 # Changelog
 
+## [v2.2.3](https://github.com/containeroo/helminator/tree/v2.2.3) (2021-03-16)
+
+[All Commits](https://github.com/containeroo/helminator/compare/v2.2.2...v2.2.3)
+
+**Bug fixes:**
+
+- add loglevel to debug output
+
 ## [v2.2.2](https://github.com/containeroo/helminator/tree/v2.2.2) (2021-01-26)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v2.2.1...v2.2.2)
