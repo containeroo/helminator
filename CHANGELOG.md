@@ -1,5 +1,13 @@
 # Changelog
 
+## [v2.3.0](https://github.com/containeroo/helminator/tree/v2.3.0) (2021-04-25)
+
+[All Commits](https://github.com/containeroo/helminator/compare/v2.2.4...v2.3.0)
+
+**New features:**
+
+- new method to count errors
+
 ## [v2.2.3](https://github.com/containeroo/helminator/tree/v2.2.3) (2021-03-16)
 
 [All Commits](https://github.com/containeroo/helminator/compare/v2.2.2...v2.2.3)
