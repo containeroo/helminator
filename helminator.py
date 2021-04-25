@@ -29,7 +29,6 @@ except Exception:
 __version__ = "2.2.3"
 
 ansible_chart_repos, ansible_helm_charts, chart_updates = [], [], []
-errors = False
 
 Pattern = namedtuple("Pattern", ['with_items', 'mr_title', ])
 pattern = Pattern(
@@ -59,6 +58,18 @@ templates = Templates(
     chart_version="chart_version: {VERSION}",
     slack_notification="{LINK_START}{CHART_NAME}{LINK_END}: `{OLD_VERSION}` -&gt; `{NEW_VERSION}`",
 )
+
+
+class CallCounted:
+    """Decorator to determine number of calls for a method"""
+
+    def __init__(self, method):
+        self.method = method
+        self.counter = 0
+
+    def __call__(self, *args, **kwargs):
+        self.counter += 1
+        return self.method(*args, **kwargs)
 
 
 def check_env_vars():
@@ -173,6 +184,9 @@ def setup_logger(loglevel: str = 'info'):
     console_logger.setLevel(loglevel)
     console_logger.setFormatter(debug_format if loglevel == logging.DEBUG else default_format)
     root_logger.addHandler(console_logger)
+
+    logging.error = CallCounted(logging.error)
+    logging.critical = CallCounted(logging.critical)
 
 
 def process_yaml(search_dir, additional_vars=None, enable_prereleases=False):
@@ -340,7 +354,6 @@ def get_chart_updates(enable_prereleases=False, verify_ssl=True):
          enable_prereleases {bool} -- process pre-releases (default: False)
          verify_ssl {bool} -- check ssl certs (default: True)
     """
-    global errors
     for ansible_chart_repo in ansible_chart_repos:
         ansible_helm_charts_matching = [chart for chart in ansible_helm_charts if
                                         chart['repo'] == ansible_chart_repo['name']]
@@ -356,19 +369,16 @@ def get_chart_updates(enable_prereleases=False, verify_ssl=True):
             repo_response = requests.get(url=helm_chart_url, verify=verify_ssl)
         except Exception as e:
             logging.error(f"unable to fetch helm repository '{helm_chart_url}'. {str(e)}")
-            errors = True
             continue
 
         if repo_response.status_code != 200:
             logging.error(f"'{helm_chart_url}' returned: {repo_response.status_code}")
-            errors = True
             continue
 
         try:
             repo_charts = yaml.safe_load(repo_response.content)
         except Exception as e:
             logging.error(f"unable to parse '{helm_chart_url}'. {str(e)}")
-            errors = True
             continue
 
         for repo_charts in repo_charts['entries'].items():
@@ -524,7 +534,6 @@ def update_project(project: Project,
     Returns:
         gitlab.v4.objects.ProjectMergeRequest: Gitlab merge request object
     """
-    global errors
     if not isinstance(project, gitlab.v4.objects.Project):
         raise TypeError(f"parameter 'project' must be of type 'gitlab.v4.objects.Project', got '{type(project)}'")
 
@@ -894,7 +903,6 @@ def send_slack(msg, slack_token, slack_channel):
 
 
 def main():
-    global errors
     try:
         env_vars = check_env_vars()
     except Exception as e:
@@ -983,13 +991,11 @@ def main():
                                         assignee_ids=assignee_ids,
                                         labels=env_vars.labels)
                 except Exception as e:
-                    errors = True
                     logging.error(f"cannot update chart '{chart['chart_name']}' ('{gitlab_file_path}'). {e}")
                 finally:
                     if mr:
                         chart['mr_link'] = mr.web_url
         except Exception as e:
-            errors = True
             logging.critical(e)
 
     if env_vars.slack_token and chart_updates:
@@ -1018,7 +1024,7 @@ def main():
         PLURAL="s" if len(chart_updates) != 1 else "")
     )
     logging.debug("finish processing")
-    sys.exit(1 if errors else 0)
+    sys.exit(1 if logging.error.counter or logging.critical.counter else 0)
 
 
 if __name__ == "__main__":
