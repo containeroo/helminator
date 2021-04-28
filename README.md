@@ -2,7 +2,7 @@
 
 # DEPRECIATION WARNING
 
-In favor of [Renovate regex](https://docs.renovatebot.com/modules/manager/regex/) this project wil not be maintained anymore.
+In favor of [Renovate regex](https://docs.renovatebot.com/modules/manager/regex/) this project will not be maintained anymore.
 
 here is an example how renovate will check if a helm chart update is available:
 
