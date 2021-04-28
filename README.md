@@ -1,5 +1,67 @@
 # Helminator
 
+**DEPRECIATION WARNING***
+
+In favor of [Renovate regex](https://docs.renovatebot.com/modules/manager/regex/) this project wil not be maintained anymore.
+
+here is an example how renovate will check if a helm chart update is available:
+
+tasks/argocd.yml
+
+```yaml
+---
+- name: Install helm chart argocd
+  helm:
+    name: argocd
+    # renovate: datasource=helm
+    chart_repo_url: https://argoproj.github.io/argo-helm
+    chart_ref: argo-cd
+    chart_version: 3.2.2
+    create_namespace: true
+    release_namespace: "{{ argocd_namespace }}"
+    values: "{{ lookup('template', 'argocd/argocd-values.yaml') | from_yaml }}"
+```
+
+renovate.json:
+
+```json
+{
+    "ignorePaths": [
+        "collections/**"
+    ],
+    "assignees": [
+        "YOUR USER NAME"
+    ],
+    "packageRules": [
+        {
+            "datasources": [
+                "galaxy",
+                "helm"
+            ],
+            "updateTypes": [
+                "major"
+            ],
+            "enabled": true
+        }
+    ],
+    "regexManagers": [
+        {
+            "fileMatch": [
+                "tasks\/.*\\.yml"
+            ],
+            "matchStrings": [
+                "datasource=(?<datasource>.*?)\\s.*chart_repo_url: (?<registryUrl>.*?)\\s.* chart_ref: (?<depName>.*?)\\s.*?chart_version: (?<currentValue>.*)\\s"
+            ],
+            "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}"
+        }
+    ],
+    "separateMajorMinor": false,
+    "labels": [
+        "renovate"
+    ]
+}
+```
+
 ![Docker Image Version (latest semver)](https://img.shields.io/docker/v/containeroo/helminator?style=flat-square)
 ![Docker Pulls](https://img.shields.io/docker/pulls/containeroo/helminator?style=flat-square)
 ![Docker Image Size (tag)](https://img.shields.io/docker/image-size/containeroo/helminator/latest?style=flat-square)
