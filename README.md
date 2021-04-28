@@ -1,6 +1,6 @@
 # Helminator
 
-**DEPRECIATION WARNING***
+# DEPRECIATION WARNING
 
 In favor of [Renovate regex](https://docs.renovatebot.com/modules/manager/regex/) this project wil not be maintained anymore.
 
