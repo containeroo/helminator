@@ -1,5 +1,5 @@
 PyYAML==5.4.1
 requests==2.25.1
-python-gitlab==2.6.0
+python-gitlab==2.7.1
 slackclient==2.9.3
 semver==2.13.0
